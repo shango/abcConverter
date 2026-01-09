@@ -1,0 +1,388 @@
+================================================================================
+COMPARING ALEMBIC FILES
+================================================================================
+
+File 1: syntheyes_output/syntheyes_export.abc
+File 2: syntheyes_output/nuke_export.abc
+
+
+================================================================================
+TIME SAMPLING
+================================================================================
+
+File 1:
+  Num time samplings: 2
+  Time sampling 0: 1 samples
+  Time sampling 1: 165 samples
+    Start time: 0.041666666666666664
+    End time: 6.875
+
+File 2:
+  Num time samplings: 2
+  Time sampling 0: 1 samples
+  Time sampling 1: 165 samples
+    Start time: 0.041666666666666664
+    End time: 6.875
+
+================================================================================
+HIERARCHY - FILE 1
+================================================================================
+ABC (Unknown)
+  MetaData: _ai_AlembicVersion=Alembic 1.8.6 (built Feb  1 2024 10:06:27);_ai_Application=SynthEyes 2025.2.3399;_ai_DateWritten=Wed Jan  7 15:10:42 2026;_ai_Description=Exported from: D:\META_PROJECT_FILES\PROJECTS\CABLE0001\CABL0001_pl01_raw_v001_0044.sni
+  Camera01 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 165
+      - IsConstant: False
+    Camera01Data (ICamera)
+      MetaData: schema=AbcGeom_Camera_v1;schemaObjTitle=AbcGeom_Camera_v1:.geom
+      - Camera properties:
+        - NumSamples: 1
+  Camera01Trackers (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 0
+      - IsConstant: True
+    Tracker5 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker17 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker34 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker35 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker58 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker72 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker73 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker99 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker117 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker139 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker151 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker152 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker157 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker162 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker168 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker186 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker199 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker214 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker218 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+    Tracker225 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: True
+  Plane01 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Plane01Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 518
+        - Faces: 468
+  Plane02 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Plane02Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 702
+        - Faces: 636
+  Box01 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Box01Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 398
+        - Faces: 304
+  Box02 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Box02Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 398
+        - Faces: 304
+  Box03 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Box03Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 558
+        - Faces: 448
+  Hemisphere01 (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    Hemisphere01Shape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 559
+        - Faces: 507
+  GenMan6FT_lo (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 1
+      - IsConstant: True
+    GenMan6FT_loShape (IPolyMesh)
+      MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+      - Mesh properties:
+        - NumSamples: 1
+        - Vertices: 18325
+        - Faces: 18325
+
+================================================================================
+HIERARCHY - FILE 2
+================================================================================
+ABC (Unknown)
+  MetaData: _ai_AlembicVersion=Alembic 1.8.6 (built Jan  5 2024 15:04:19)
+  Meshes (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 0
+      - IsConstant: True
+    ReadGeo1 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 0
+        - IsConstant: True
+      root (IXform)
+        MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+        - Transform properties:
+          - NumSamples: 0
+          - IsConstant: True
+        Box01 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Box01Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 398
+                - Faces: 304
+        Box02 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Box02Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 398
+                - Faces: 304
+        Box03 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Box03Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 558
+                - Faces: 448
+        GenMan6FT_lo (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          GenMan6FT_loShape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 18325
+                - Faces: 18325
+        Hemisphere01 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Hemisphere01Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 559
+                - Faces: 507
+        Plane01 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Plane01Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 518
+                - Faces: 468
+        Plane02 (IXform)
+          MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+          - Transform properties:
+            - NumSamples: 0
+            - IsConstant: True
+          Plane02Shape (IXform)
+            MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+            - Transform properties:
+              - NumSamples: 165
+              - IsConstant: True
+            mesh (IPolyMesh)
+              MetaData: schema=AbcGeom_PolyMesh_v1;schemaBaseType=AbcGeom_GeomBase_v1;schemaObjTitle=AbcGeom_PolyMesh_v1:.geom
+              - Mesh properties:
+                - NumSamples: 165
+                - Vertices: 702
+                - Faces: 636
+  Cameras (IXform)
+    MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+    - Transform properties:
+      - NumSamples: 0
+      - IsConstant: True
+    Camera1 (IXform)
+      MetaData: schema=AbcGeom_Xform_v3;schemaObjTitle=AbcGeom_Xform_v3:.xform
+      - Transform properties:
+        - NumSamples: 165
+        - IsConstant: False
+      object (ICamera)
+        MetaData: schema=AbcGeom_Camera_v1;schemaObjTitle=AbcGeom_Camera_v1:.geom
+        - Camera properties:
+          - NumSamples: 165
+
+================================================================================
+OBJECT TYPE SUMMARY
+================================================================================
+
+File 1 (syntheyes_output/syntheyes_export.abc):
+  ICamera: 1
+  IPolyMesh: 7
+  IXform: 29
+
+File 2 (syntheyes_output/nuke_export.abc):
+  ICamera: 1
+  IPolyMesh: 7
+  IXform: 19
+
+================================================================================
+DIFFERENCES
+================================================================================
+  IXform: File1=29, File2=19 (diff=-10)

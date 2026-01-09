@@ -1,11 +1,13 @@
 # Alembic to After Effects JSX Converter
 
-**Version 1.0.0-beta.1**
+**Version 1.0.0**
 
-Convert Alembic (.abc) camera tracking files from SynthEyes to After Effects 2025 compatible JSX scripts with full animation support.
+Convert Alembic (.abc) camera tracking files from SynthEyes, Nuke, and other DCCs to After Effects 2025 compatible JSX scripts with full animation support.
 
 ## Features
 
+- ✅ **Multi-DCC Support** - Works with Alembic files from SynthEyes, Nuke, Maya, Houdini, and other DCCs
+- ✅ **Intelligent Structure Detection** - Automatically handles different hierarchies and organizational groups
 - ✅ **Animated Camera Export** - Full camera animation with focal length, aperture, and transforms
 - ✅ **Geometry Transforms** - Export mesh objects with animation as 3D nulls
 - ✅ **Locators/Trackers** - Export 3D tracking points as shy, yellow-labeled null layers
@@ -56,7 +58,7 @@ The resulting executable (~50-80 MB) can be distributed to users without requiri
 
 2. **Select Input File**
    - Click "Browse..." next to "Input Alembic File"
-   - Choose your .abc file exported from SynthEyes
+   - Choose your .abc file (from SynthEyes, Nuke, or any other DCC)
 
 3. **Configure Settings** (auto-populated from Alembic when possible)
    - **Composition Name**: Auto-set from filename
@@ -244,12 +246,14 @@ The main application code is in `a2j_gui.py`. Key functions:
 
 - Mesh deformation/animation is not exported (only transforms)
 - Materials and textures are not included (OBJ files only contain geometry)
-- Some SynthEyes-specific features may not be supported
+- Some DCC-specific features may not be supported
 
 ## Changelog
 
-### Version 1.0.0-beta.1 (January 2026)
-- ✅ Initial beta release
+### Version 1.0.0 (January 2026)
+- ✅ **STABLE RELEASE**
+- ✅ **Multi-DCC Support** - Works with SynthEyes, Nuke, Maya, Houdini, and other Alembic exporters
+- ✅ **Intelligent Structure Detection** - Automatically handles different hierarchies, organizational groups, and nesting depths
 - ✅ Full camera animation support with focal length and aperture
 - ✅ Geometry transform export with automatic OBJ file generation
 - ✅ Tracker/locator export as shy, yellow-labeled null layers
@@ -269,7 +273,7 @@ Contributions welcome! Please feel free to submit issues or pull requests.
 
 ## Credits
 
-Created for VFX professionals working with SynthEyes camera tracking and After Effects compositing.
+Created for VFX professionals working with 3D camera tracking and After Effects compositing workflows across multiple DCCs.
 
 ## Support
 

@@ -605,11 +605,66 @@ class AlembicToJSXConverter:
         for child in obj.children:
             self.collect_objects(child, objects_list)
 
-    def has_shape_child(self, obj):
-        """Check if this object has a camera or mesh child"""
+    def has_shape_child(self, obj, depth=0, max_depth=2):
+        """Check if this object has a camera or mesh child (checks recursively for Nuke-style nesting)"""
         for child in obj.children:
             if ICamera.matches(child.getHeader()) or IPolyMesh.matches(child.getHeader()):
                 return True
+            # Check one level deeper for Nuke-style extra IXform nesting
+            if depth < max_depth and IXform.matches(child.getHeader()):
+                if self.has_shape_child(child, depth + 1, max_depth):
+                    return True
+        return False
+
+    def find_mesh_recursive(self, obj, depth=0, max_depth=2):
+        """Find a mesh child recursively (handles Nuke-style extra IXform nesting)"""
+        for child in obj.children:
+            if IPolyMesh.matches(child.getHeader()):
+                return child
+            # Check deeper for Nuke-style nesting
+            if depth < max_depth and IXform.matches(child.getHeader()):
+                mesh = self.find_mesh_recursive(child, depth + 1, max_depth)
+                if mesh:
+                    return mesh
+        return None
+
+    def find_camera_recursive(self, obj, depth=0, max_depth=2):
+        """Find a camera child recursively (handles Nuke-style extra IXform nesting)"""
+        for child in obj.children:
+            if ICamera.matches(child.getHeader()):
+                return child
+            # Check deeper for Nuke-style nesting
+            if depth < max_depth and IXform.matches(child.getHeader()):
+                cam = self.find_camera_recursive(child, depth + 1, max_depth)
+                if cam:
+                    return cam
+        return None
+
+    def is_organizational_group(self, obj):
+        """Detect if an IXform is just an organizational container with no meaningful transform"""
+        if not IXform.matches(obj.getHeader()):
+            return False
+
+        # Check if it's animated - if it has significant animation, it's not just organizational
+        xform = IXform(obj, WrapExistingFlag.kWrapExisting)
+        schema = xform.getSchema()
+
+        # If it has 0 or 1 samples and only contains other IXforms (no direct shapes), it's organizational
+        num_samples = schema.getNumSamples()
+        if num_samples <= 1:
+            # Check if it only contains IXforms (no direct cameras/meshes)
+            has_direct_shape = False
+            has_children = False
+            for child in obj.children:
+                has_children = True
+                if ICamera.matches(child.getHeader()) or IPolyMesh.matches(child.getHeader()):
+                    has_direct_shape = True
+                    break
+
+            # If it has children but no direct shapes, likely organizational
+            if has_children and not has_direct_shape:
+                return True
+
         return False
 
     def should_skip_object(self, name, parent_name):
@@ -619,6 +674,10 @@ class AlembicToJSXConverter:
             return True
         # Skip group/organizational objects like "Camera01Trackers" (but not individual trackers)
         if "Trackers" in name and not name.startswith("Tracker"):
+            return True
+        # Common organizational group names from various DCCs
+        organizational_names = ["Meshes", "Cameras", "ReadGeo", "root", "persp", "top", "front", "side"]
+        if name in organizational_names or any(name.startswith(prefix) for prefix in ["ReadGeo", "Scene"]):
             return True
         return False
 
@@ -803,9 +862,9 @@ class AlembicToJSXConverter:
                     self.log(f"Skipping helper object: {name}")
                     continue
 
-                # Skip parent IXform nodes if they have camera/mesh children
-                if IXform.matches(obj.getHeader()) and self.has_shape_child(obj):
-                    self.log(f"Skipping parent transform: {name}")
+                # Skip organizational container groups (detected automatically)
+                if IXform.matches(obj.getHeader()) and self.is_organizational_group(obj):
+                    self.log(f"Skipping organizational group: {name}")
                     continue
 
                 if ICamera.matches(obj.getHeader()):
@@ -845,12 +904,49 @@ class AlembicToJSXConverter:
                         processed_names.add(parent_name)
 
                 elif IXform.matches(obj.getHeader()):
-                    # Only process IXform as locator if it doesn't have camera/mesh children
-                    self.log(f"Processing locator: {name}")
-                    loc_jsx = self.process_locator(obj, name, frame_count, fps, comp_width, comp_height)
-                    jsx_lines.extend(loc_jsx)
-                    jsx_lines.append("")
-                    processed_names.add(name)
+                    # Check for deeply nested camera (Nuke-style)
+                    nested_camera = self.find_camera_recursive(obj)
+                    if nested_camera:
+                        # Process as camera with this IXform as transform parent
+                        camera_name = nested_camera.getName()
+                        self.log(f"Processing camera (Nuke-style): {name} -> {camera_name}")
+                        camera_jsx = self.process_camera(nested_camera, obj, name, frame_count, fps, comp_width, comp_height)
+                        jsx_lines.extend(camera_jsx)
+                        jsx_lines.append("")
+                        processed_names.add(name)
+                        processed_names.add(camera_name)
+                        # Also mark intermediate nodes as processed
+                        for child in obj.children:
+                            if IXform.matches(child.getHeader()):
+                                processed_names.add(child.getName())
+                    # Check for deeply nested mesh (Nuke-style)
+                    elif self.find_mesh_recursive(obj):
+                        nested_mesh = self.find_mesh_recursive(obj)
+                        # Process as geometry with this IXform as transform parent
+                        mesh_name = nested_mesh.getName()
+                        # Use better naming for generic "mesh" names
+                        if mesh_name == "mesh" or not mesh_name:
+                            display_name = name
+                        else:
+                            display_name = mesh_name
+
+                        self.log(f"Processing geometry (Nuke-style): {name} -> {mesh_name}")
+                        geom_jsx = self.process_geometry(nested_mesh, obj, mesh_name, name, frame_count, fps, obj_output_dir, jsx_dir, comp_width, comp_height)
+                        jsx_lines.extend(geom_jsx)
+                        jsx_lines.append("")
+                        processed_names.add(name)
+                        processed_names.add(mesh_name)
+                        # Also mark intermediate nodes as processed
+                        for child in obj.children:
+                            if IXform.matches(child.getHeader()):
+                                processed_names.add(child.getName())
+                    else:
+                        # Only process IXform as locator if it doesn't have camera/mesh children
+                        self.log(f"Processing locator: {name}")
+                        loc_jsx = self.process_locator(obj, name, frame_count, fps, comp_width, comp_height)
+                        jsx_lines.extend(loc_jsx)
+                        jsx_lines.append("")
+                        processed_names.add(name)
 
             # Footer - make comp active and open in viewer
             jsx_lines.append("// Make comp the current open composition")
@@ -889,8 +985,8 @@ class AlembicToJSXGUI:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("Alembic to After Effects JSX Converter v1.0.0-beta.1")
-        self.root.geometry("720x820")
+        self.root.title("Alembic to After Effects JSX Converter v1.0.0")
+        self.root.geometry("650x820")
         self.root.resizable(False, False)
 
         # Grayscale theme colors
@@ -1002,7 +1098,7 @@ class AlembicToJSXGUI:
                          style='Title.TLabel')
         title.pack(pady=(25, 5))
 
-        version = ttk.Label(self.root, text="v1.0.0-beta.1",
+        version = ttk.Label(self.root, text="v1.0.0",
                            style='Subtitle.TLabel')
         version.pack(pady=(0, 5))
 
@@ -1016,7 +1112,7 @@ class AlembicToJSXGUI:
 
         # Input file
         ttk.Label(main_frame, text="Input Alembic File (.abc):", style='Dark.TLabel').grid(row=0, column=0, sticky=tk.W, pady=5)
-        abc_entry = tk.Entry(main_frame, textvariable=self.abc_file, width=50,
+        abc_entry = tk.Entry(main_frame, textvariable=self.abc_file, width=45,
                             bg=self.colors['entry_bg'], fg=self.colors['entry_text'],
                             insertbackground=self.colors['entry_text'], relief='flat', borderwidth=2)
         abc_entry.grid(row=1, column=0, pady=5, ipady=3)
@@ -1028,7 +1124,7 @@ class AlembicToJSXGUI:
 
         # Output file
         ttk.Label(main_frame, text="Output JSX File (.jsx):", style='Dark.TLabel').grid(row=2, column=0, sticky=tk.W, pady=5)
-        jsx_entry = tk.Entry(main_frame, textvariable=self.jsx_file, width=50,
+        jsx_entry = tk.Entry(main_frame, textvariable=self.jsx_file, width=45,
                             bg=self.colors['entry_bg'], fg=self.colors['entry_text'],
                             insertbackground=self.colors['entry_text'], relief='flat', borderwidth=2)
         jsx_entry.grid(row=3, column=0, pady=5, ipady=3)
@@ -1078,7 +1174,7 @@ class AlembicToJSXGUI:
         log_frame = ttk.LabelFrame(main_frame, text="Progress Log", padding="5", style='Dark.TLabelframe')
         log_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
 
-        self.log_text = tk.Text(log_frame, height=12, width=70, wrap=tk.WORD,
+        self.log_text = tk.Text(log_frame, height=12, width=63, wrap=tk.WORD,
                                 bg=self.colors['entry_bg'],
                                 fg=self.colors['entry_text'],
                                 insertbackground=self.colors['entry_text'],
