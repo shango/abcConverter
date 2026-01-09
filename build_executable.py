@@ -38,6 +38,7 @@ def build():
         '--clean',
         '--noconfirm',
         # Include hidden imports
+        '--hidden-import=alembic_converter',
         '--hidden-import=alembic',
         '--hidden-import=alembic.Abc',
         '--hidden-import=alembic.AbcGeom',

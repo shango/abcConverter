@@ -34,43 +34,53 @@ pip install --upgrade pip
 echo "Installing Python dependencies..."
 pip install numpy imath pyinstaller
 
-# Install Alembic
+# Install/Link Alembic
 echo ""
 echo "===================================="
-echo "Installing Alembic Python bindings"
+echo "Setting up Alembic Python bindings"
 echo "===================================="
 echo ""
-echo "Attempting to install via conda-forge..."
-echo ""
 
-# Check if conda is available
-if command -v conda &> /dev/null; then
-    echo "✓ Conda found, installing Alembic..."
-    conda install -c conda-forge alembic -y
-else
-    echo "⚠ Conda not found. Attempting pip installation..."
+# Check if Homebrew Alembic is installed
+if command -v brew &> /dev/null && brew list alembic &> /dev/null; then
+    echo "✓ Homebrew Alembic found"
 
-    # Try pip (may not work on all systems)
-    pip install alembic || {
-        echo ""
-        echo "================================================"
-        echo "WARNING: Automatic Alembic installation failed"
-        echo "================================================"
-        echo ""
-        echo "Please install Alembic manually using one of these methods:"
-        echo ""
-        echo "1. Using Conda (recommended):"
-        echo "   conda install -c conda-forge alembic"
-        echo ""
-        echo "2. Build from source:"
-        echo "   https://github.com/alembic/alembic"
-        echo ""
-        echo "3. System package manager:"
-        echo "   - Ubuntu/Debian: sudo apt-get install libalembic-dev python3-alembic"
-        echo "   - macOS (Homebrew): brew install alembic"
-        echo ""
-        exit 1
+    # Determine correct PYTHONPATH based on Homebrew prefix
+    BREW_PREFIX=$(brew --prefix)
+    PYTHON_VERSION=$(python3 --version | grep -oE '[0-9]+\.[0-9]+')
+    ALEMBIC_PYTHONPATH="$BREW_PREFIX/lib/python${PYTHON_VERSION}/site-packages"
+
+    # Add to venv activation script
+    ACTIVATE_SCRIPT="venv/bin/activate"
+    if [ -f "$ACTIVATE_SCRIPT" ]; then
+        # Check if PYTHONPATH is already set in activate script
+        if ! grep -q "PYTHONPATH.*alembic" "$ACTIVATE_SCRIPT"; then
+            echo "" >> "$ACTIVATE_SCRIPT"
+            echo "# Link to Homebrew Alembic" >> "$ACTIVATE_SCRIPT"
+            echo "export PYTHONPATH=\"$ALEMBIC_PYTHONPATH:\$PYTHONPATH\"" >> "$ACTIVATE_SCRIPT"
+            echo "✓ Added Alembic to venv PYTHONPATH"
+        else
+            echo "✓ Alembic already linked to venv"
+        fi
+    fi
+
+    # Also set for current session
+    export PYTHONPATH="$ALEMBIC_PYTHONPATH:$PYTHONPATH"
+
+    # Verify installation
+    python3 -c "import alembic.Abc" 2>/dev/null && echo "✓ Alembic Python bindings working" || {
+        echo "⚠ Warning: Could not verify Alembic import"
+        echo "You may need to run: export PYTHONPATH=\"$ALEMBIC_PYTHONPATH:\$PYTHONPATH\""
     }
+
+else
+    echo "⚠ Homebrew Alembic not found"
+    echo ""
+    echo "Please install Alembic via Homebrew:"
+    echo "  brew install alembic"
+    echo ""
+    echo "Then run this setup script again."
+    exit 1
 fi
 
 echo ""
@@ -79,8 +89,8 @@ echo "Setup Complete!"
 echo "===================================="
 echo ""
 echo "To run the converter:"
-echo "  1. Activate the environment: source venv/bin/activate"
-echo "  2. Run the GUI: python a2j_gui.py"
+echo "  GUI Mode:  ./run.sh"
+echo "  CLI Mode:  python a2j.py input.abc output.jsx"
 echo ""
-echo "Or use the run script: ./run.sh"
+echo "For detailed macOS instructions, see: MACOS_SETUP.md"
 echo ""

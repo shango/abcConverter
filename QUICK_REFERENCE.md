@@ -1,6 +1,6 @@
 
 # Quick Reference Guide for Alembic To JSX Converter 
-## Version 1.0.0-beta.1
+## Version 1.0.0
 
 ## For End Users (Using the Converter)
 

@@ -36,19 +36,34 @@ The resulting executable (~50-80 MB) can be distributed to users without requiri
 
 ---
 
-### For Developers (macOS/Linux)
+### For macOS/Linux Users
 
-#### Setup and Run GUI:
+#### Setup (one-time):
 ```bash
-./setup.sh      # Install dependencies (one-time)
-./run.sh        # Launch the GUI
+./setup.sh      # Install dependencies
 ```
 
-#### Build Standalone Executable:
+#### GUI Mode:
 ```bash
-./setup.sh      # Install dependencies (one-time)
+./run.sh        # Launch the graphical interface
+```
+
+#### Command Line Mode:
+```bash
+python a2j.py input.abc output.jsx [options]
+
+# Examples:
+python a2j.py scene.abc scene.jsx
+python a2j.py scene.abc scene.jsx --fps 30 --frames 240
+python a2j.py scene.abc scene.jsx --comp-name "MyScene"
+```
+
+#### Build Standalone Executable (optional):
+```bash
 ./build.sh      # Create executable in dist/ folder
 ```
+
+**See [MACOS_SETUP.md](MACOS_SETUP.md) for detailed macOS setup and CLI documentation.**
 
 ## GUI Usage
 
@@ -75,6 +90,58 @@ The resulting executable (~50-80 MB) can be distributed to users without requiri
    - In After Effects: File → Scripts → Run Script File
    - Select the generated .jsx file
    - Composition will auto-open with all elements properly positioned
+
+## Command Line Usage (macOS/Linux)
+
+The CLI version provides the same functionality as the GUI but can be scripted and automated.
+
+### Basic Syntax
+```bash
+python a2j.py <input.abc> <output.jsx> [options]
+```
+
+### Options
+- `--fps <number>` - Frame rate (default: 24)
+- `--frames <number>` - Duration in frames (default: auto-detect)
+- `--comp-name <name>` - Composition name (default: input filename)
+
+### Examples
+
+**Basic conversion:**
+```bash
+python a2j.py scene.abc scene.jsx
+```
+
+**Custom frame rate and duration:**
+```bash
+python a2j.py tracking.abc tracking.jsx --fps 30 --frames 240
+```
+
+**Full custom settings:**
+```bash
+python a2j.py camera_track.abc output.jsx --fps 24 --frames 165 --comp-name "Final_Shot"
+```
+
+**Batch processing multiple files:**
+```bash
+for file in *.abc; do
+  python a2j.py "$file" "${file%.abc}.jsx" --fps 24
+done
+```
+
+**Get help:**
+```bash
+python a2j.py --help
+```
+
+### Output
+The CLI creates the same output as the GUI:
+- `output.jsx` - After Effects script
+- `[geometry_name].obj` - OBJ files for each mesh (same directory as JSX)
+
+**Note:** The CLI and GUI use identical conversion logic, ensuring consistent results.
+
+**For detailed macOS setup instructions, see [MACOS_SETUP.md](MACOS_SETUP.md).**
 
 ## What Gets Exported
 
@@ -193,7 +260,9 @@ sudo apt-get install python3-tk
 
 ```
 alembic_to_jsx/
-├── a2j_gui.py                  # Main application (GUI)
+├── alembic_converter.py         # Core conversion logic
+├── a2j_gui.py                   # GUI application
+├── a2j.py                       # CLI application
 ├── requirements.txt             # Python dependencies
 ├── build_executable.py          # PyInstaller build configuration
 │
@@ -211,12 +280,7 @@ alembic_to_jsx/
 ├── README.md                    # This file
 ├── WINDOWS_BUILD.md             # Detailed Windows build guide
 ├── QUICK_REFERENCE.md           # Quick command reference
-├── README_FOR_USERS.txt         # End-user documentation
-│
-└── syntheyes_output/            # Example/reference files
-    ├── ae_jsx.jsx               # SynthEyes reference JSX output
-    ├── alembic.abc              # Test Alembic file
-    └── *.obj                    # Example mesh exports
+└── README_FOR_USERS.txt         # End-user documentation
 ```
 
 ## Development
@@ -235,11 +299,14 @@ python a2j_gui.py
 
 ### Making Changes
 
-The main application code is in `a2j_gui.py`. Key functions:
+The application is organized into separate modules:
 
-- `process_camera()` - Handles camera export with animation
-- `process_geometry()` - Exports mesh transforms and OBJ files
-- `process_locator()` - Exports tracker/locator nulls
+- **`alembic_converter.py`** - Core conversion logic (shared by CLI and GUI)
+  - `process_camera()` - Handles camera export with animation
+  - `process_geometry()` - Exports mesh transforms and OBJ files
+  - `process_locator()` - Exports tracker/locator nulls
+- **`a2j_gui.py`** - Tkinter GUI wrapper
+- **`a2j.py`** - Command-line interface wrapper
 - `extract_render_resolution()` - Auto-detects comp size from Alembic
 
 ## Known Limitations
