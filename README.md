@@ -1,347 +1,142 @@
-# Alembic to After Effects JSX Converter
+# abcConverter
 
-**Version 1.0.0**
+**Version 2.1.0**
 
-Convert Alembic (.abc) camera tracking files from SynthEyes, Nuke, and other DCCs to After Effects 2025 compatible JSX scripts with full animation support.
+Convert Alembic (.abc) files to After Effects JSX, USD, and Maya formats with intelligent vertex animation detection.
 
 ## Features
 
-- ✅ **Multi-DCC Support** - Works with Alembic files from SynthEyes, Nuke, Maya, Houdini, and other DCCs
-- ✅ **Intelligent Structure Detection** - Automatically handles different hierarchies and organizational groups
-- ✅ **Animated Camera Export** - Full camera animation with focal length, aperture, and transforms
-- ✅ **Geometry Transforms** - Export mesh objects with animation as 3D nulls
-- ✅ **Locators/Trackers** - Export 3D tracking points as shy, yellow-labeled null layers
-- ✅ **OBJ Mesh Export** - Automatically exports meshes to OBJ files with correct scale
-- ✅ **Coordinate Conversion** - Automatic Y-up to After Effects composition space transformation
-- ✅ **Auto-Detection** - Automatically detects frame count and composition resolution from Alembic metadata
-- ✅ **Auto-Open Comp** - Generated composition opens automatically in After Effects viewer
-- ✅ **User-Friendly GUI** - Modern dark-themed interface, no command line required
-- ✅ **Standalone Executable** - Build a single .exe file with no dependencies needed
+- **Multi-Format Export** - After Effects JSX + OBJ, USD (.usdc), Maya USD
+- **Animation Intelligence** - Auto-detects vertex deformation vs transform-only animation
+- **Multi-DCC Support** - Works with Alembic from SynthEyes, Nuke, Maya, Houdini, and more
+- **Cameras & Geometry** - Full animation support with automatic coordinate conversion
+- **User-Friendly** - Modern GUI or powerful CLI
+- **Standalone Builds** - Distribute as .exe with no dependencies
 
-## 🚀 Quick Start
+## Quick Start
 
-### For Windows Users (Recommended)
-
-**Build a standalone .exe in 3 simple steps:**
+### Windows
 
 ```cmd
-1. setup_windows.bat    # Install everything (one-time setup)
-2. build_windows.bat    # Create AlembicToJSX.exe
-3. Double-click AlembicToJSX.exe to run!
+setup_windows_v2.1.bat    # One-time setup (installs dependencies + USD)
+build_windows_v2.1.bat    # Build abcConverter.exe
 ```
 
-The resulting executable (~50-80 MB) can be distributed to users without requiring Python installation.
+Or use the all-in-one script: `build_all_windows.bat`
 
-**See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed Windows build instructions.**
+See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for details.
 
----
+### macOS/Linux
 
-### For macOS/Linux Users
-
-#### Setup (one-time):
 ```bash
-./setup.sh      # Install dependencies
+./setup.sh                # One-time setup
+./run.sh                  # Launch GUI
 ```
 
-#### GUI Mode:
+See [MACOS_SETUP.md](MACOS_SETUP.md) for CLI usage and build instructions.
+
+## Usage
+
+### GUI
+
+1. Launch: `./run.sh` (macOS/Linux) or `abcConverter.exe` (Windows)
+2. Select input `.abc` file and output directory
+3. Choose export formats (After Effects, USD, Maya)
+4. Configure settings (auto-detected from Alembic)
+5. Click "Convert to Formats"
+6. Import result files into your DCC:
+   - **After Effects**: File → Scripts → Run Script File
+   - **Maya/Houdini**: File → Import → Select .usdc file
+
+### CLI
+
 ```bash
-./run.sh        # Launch the graphical interface
-```
+# Export all formats
+python a2j.py scene.abc --output-dir ./export --shot-name shot_010
 
-#### Command Line Mode:
-```bash
-python a2j.py input.abc output.jsx [options]
+# Export specific formats
+python a2j.py scene.abc --output-dir ./export --format ae usd
 
-# Examples:
-python a2j.py scene.abc scene.jsx
-python a2j.py scene.abc scene.jsx --fps 30 --frames 240
-python a2j.py scene.abc scene.jsx --comp-name "MyScene"
-```
+# Custom settings
+python a2j.py scene.abc --output-dir ./export --fps 30 --frames 240
 
-#### Build Standalone Executable (optional):
-```bash
-./build.sh      # Create executable in dist/ folder
-```
-
-**See [MACOS_SETUP.md](MACOS_SETUP.md) for detailed macOS setup and CLI documentation.**
-
-## GUI Usage
-
-1. **Launch the Application**
-   - Windows: Double-click `run.bat` or the built executable
-   - macOS/Linux: Run `./run.sh`
-
-2. **Select Input File**
-   - Click "Browse..." next to "Input Alembic File"
-   - Choose your .abc file (from SynthEyes, Nuke, or any other DCC)
-
-3. **Configure Settings** (auto-populated from Alembic when possible)
-   - **Composition Name**: Auto-set from filename
-   - **Frame Rate**: Default 24 fps (or detected from Alembic)
-   - **Duration**: Auto-detected from Alembic file
-   - **Resolution**: Auto-detected as 1920×1080
-
-4. **Convert**
-   - Click "⚡ Convert to JSX"
-   - Watch progress in the log window
-   - OBJ files are automatically created alongside the JSX file
-
-5. **Import to After Effects**
-   - In After Effects: File → Scripts → Run Script File
-   - Select the generated .jsx file
-   - Composition will auto-open with all elements properly positioned
-
-## Command Line Usage (macOS/Linux)
-
-The CLI version provides the same functionality as the GUI but can be scripted and automated.
-
-### Basic Syntax
-```bash
-python a2j.py <input.abc> <output.jsx> [options]
-```
-
-### Options
-- `--fps <number>` - Frame rate (default: 24)
-- `--frames <number>` - Duration in frames (default: auto-detect)
-- `--comp-name <name>` - Composition name (default: input filename)
-
-### Examples
-
-**Basic conversion:**
-```bash
-python a2j.py scene.abc scene.jsx
-```
-
-**Custom frame rate and duration:**
-```bash
-python a2j.py tracking.abc tracking.jsx --fps 30 --frames 240
-```
-
-**Full custom settings:**
-```bash
-python a2j.py camera_track.abc output.jsx --fps 24 --frames 165 --comp-name "Final_Shot"
-```
-
-**Batch processing multiple files:**
-```bash
-for file in *.abc; do
-  python a2j.py "$file" "${file%.abc}.jsx" --fps 24
-done
-```
-
-**Get help:**
-```bash
+# Help
 python a2j.py --help
 ```
 
-### Output
-The CLI creates the same output as the GUI:
-- `output.jsx` - After Effects script
-- `[geometry_name].obj` - OBJ files for each mesh (same directory as JSX)
+**Output structure:**
+```
+output_dir/
+├── shot_010_ae/    # After Effects (JSX + OBJ)
+├── shot_010_usd/   # USD export (.usdc)
+└── shot_010_maya/  # Maya USD (.usdc)
+```
 
-**Note:** The CLI and GUI use identical conversion logic, ensuring consistent results.
-
-**For detailed macOS setup instructions, see [MACOS_SETUP.md](MACOS_SETUP.md).**
+See [MACOS_SETUP.md](MACOS_SETUP.md) for detailed CLI documentation.
 
 ## What Gets Exported
 
-| Alembic Element | After Effects Result | Notes |
-|----------------|---------------------|-------|
-| **Camera** | 3D Camera layer | Full animation, focal length, zoom calculated automatically |
-| **Meshes** (IPolyMesh) | 3D Null + OBJ footage | Transform animation with linked OBJ geometry |
-| **Locators/Trackers** (IXform) | 3D Null layers | Shy layers with yellow label color for easy management |
+| Element | After Effects | USD / Maya |
+|---------|---------------|------------|
+| Cameras | 3D Camera with full animation | UsdGeom.Camera |
+| Meshes (transform-only) | 3D Null + OBJ | UsdGeom.Mesh |
+| Meshes (vertex animation) | Skipped (not supported) | Time-sampled vertices |
+| Locators/Trackers | 3D Null (yellow, shy) | Xform nodes |
 
-## Coordinate System & Transform
-
-The converter handles the coordinate system transformation automatically:
-
-- **Alembic**: Y-up world space (standard in 3D applications)
-- **After Effects**: Y-down composition space (screen convention)
-
-**Transformation formula:**
-```
-X_ae = X_alembic × 10 + (comp_width / 2)
-Y_ae = -Y_alembic × 10 + (comp_height / 2)
-Z_ae = -Z_alembic × 10
-```
-
-This ensures:
-- ✅ Unit conversion (Alembic cm → AE units)
-- ✅ Y-axis flip for composition space
-- ✅ Z-axis flip for AE depth convention
-- ✅ Origin shift to composition center
-
-**Scale handling:**
-- Mesh vertices are exported at world-scale in OBJ files
-- Scale value of 2% is applied in After Effects to compensate
-- This maintains correct proportions and relationships
+**Note:** Coordinate system conversion handled automatically (Y-up to Y-down for AE).
 
 ## Requirements
 
-### Prerequisites (Install First)
+- **Python 3.11 or 3.12**
+- **PyAlembic** (auto-installed by setup scripts)
+- **USD Library** (optional, for USD/Maya export)
+  - Windows: `pip install usd-core` or [NVIDIA USD](https://developer.nvidia.com/usd)
+  - macOS/Linux: `pip install usd-core`
+- **Other dependencies** (NumPy, imath, tkinter) auto-installed
 
-- **Python 3.8 or higher**
-- **PyAlembic** - Install according to [official PyAlembic documentation](https://github.com/alembic/alembic) for your platform
+## Installation
 
-### Additional Dependencies
+Run the setup script for your platform:
 
-- NumPy
-- imath
-- tkinter (usually included with Python)
+**Windows:** `setup_windows_v2.1.bat` or `build_all_windows.bat`
+**macOS/Linux:** `./setup.sh`
 
-**The setup scripts will install NumPy and imath automatically.**
+See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) and [MACOS_SETUP.md](MACOS_SETUP.md) for details.
 
-## Installation & Setup
+## Building Executables
 
-**⚠️ IMPORTANT:** Install PyAlembic first before running setup scripts!
+**Windows:** `build_windows_v2.1.bat` → `dist/abcConverter/abcConverter.exe` (~70-100 MB folder)
+**macOS/Linux:** `./build.sh` → `dist/abcConverter` (single file)
 
-### Windows
-
-```cmd
-setup_windows.bat
-```
-
-### macOS/Linux
-
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-
-**For building executables:** See [WINDOWS_BUILD.md](WINDOWS_BUILD.md)
-
-## Building Standalone Executables
-
-### Windows
-
-```cmd
-build_windows.bat
-```
-
-Output: `dist/AlembicToJSX.exe` (single-file executable, ~50-80 MB)
-
-### macOS/Linux
-
-```bash
-./build.sh
-```
-
-Output: `dist/AlembicToJSX` (single-file executable)
-
-The standalone executable includes all dependencies and requires no Python installation!
-
-## After Effects Compatibility
-
-- ✅ Tested with After Effects 2025 (25.0+)
-- ✅ Compatible with After Effects 24.x
-- ✅ Uses standard AE JSX API
-- ✅ Works with Classic 3D and Advanced 3D renderers
-
-## Troubleshooting
-
-### "Permission denied" (macOS/Linux)
-
-Make scripts executable:
-```bash
-chmod +x setup.sh run.sh build.sh
-```
-
-### GUI won't start
-
-Install tkinter:
-```bash
-# Ubuntu/Debian
-sudo apt-get install python3-tk
-
-# macOS - Usually included, reinstall Python from python.org if needed
-```
+End users need **Visual C++ Redistributable 2015-2022** (Windows only): https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 ## Project Structure
 
 ```
 alembic_to_jsx/
-├── alembic_converter.py         # Core conversion logic
-├── a2j_gui.py                   # GUI application
-├── a2j.py                       # CLI application
-├── requirements.txt             # Python dependencies
-├── build_executable.py          # PyInstaller build configuration
-│
-├── setup_windows.bat            # Windows setup (recommended)
-├── setup.bat                    # Windows setup (alternative)
-├── setup.sh                     # macOS/Linux setup
-│
-├── run.bat                      # Run GUI (Windows)
-├── run.sh                       # Run GUI (macOS/Linux)
-│
-├── build_windows.bat            # Build .exe (Windows - recommended)
-├── build.bat                    # Build .exe (Windows - alternative)
-├── build.sh                     # Build executable (macOS/Linux)
-│
-├── README.md                    # This file
-├── WINDOWS_BUILD.md             # Detailed Windows build guide
-├── QUICK_REFERENCE.md           # Quick command reference
-└── README_FOR_USERS.txt         # End-user documentation
+├── core/              # Core utilities (Alembic reader, animation detection)
+├── exporters/         # Format exporters (AE, USD)
+├── alembic_converter.py  # Main orchestrator
+├── a2j_gui.py         # GUI application
+├── a2j.py             # CLI application
+└── [build and setup scripts]
 ```
 
 ## Development
 
-### Running from Source
-
+Run from source:
 ```bash
-# Activate virtual environment
-source venv/bin/activate  # macOS/Linux
-# or
-venv\Scripts\activate.bat  # Windows
-
-# Run GUI
-python a2j_gui.py
+source venv/bin/activate    # macOS/Linux
+python a2j_gui.py           # Launch GUI
 ```
 
-### Making Changes
-
-The application is organized into separate modules:
-
-- **`alembic_converter.py`** - Core conversion logic (shared by CLI and GUI)
-  - `process_camera()` - Handles camera export with animation
-  - `process_geometry()` - Exports mesh transforms and OBJ files
-  - `process_locator()` - Exports tracker/locator nulls
-- **`a2j_gui.py`** - Tkinter GUI wrapper
-- **`a2j.py`** - Command-line interface wrapper
-- `extract_render_resolution()` - Auto-detects comp size from Alembic
-
-## Known Limitations
-
-- Mesh deformation/animation is not exported (only transforms)
-- Materials and textures are not included (OBJ files only contain geometry)
-- Some DCC-specific features may not be supported
-
-## Changelog
-
-### Version 1.0.0 (January 2026)
-- ✅ **STABLE RELEASE**
-- ✅ **Multi-DCC Support** - Works with SynthEyes, Nuke, Maya, Houdini, and other Alembic exporters
-- ✅ **Intelligent Structure Detection** - Automatically handles different hierarchies, organizational groups, and nesting depths
-- ✅ Full camera animation support with focal length and aperture
-- ✅ Geometry transform export with automatic OBJ file generation
-- ✅ Tracker/locator export as shy, yellow-labeled null layers
-- ✅ Auto-detection of frame count and resolution from Alembic metadata
-- ✅ Composition auto-opens in After Effects viewer
-- ✅ Correct coordinate system transformation (Y-up to AE composition space)
-- ✅ Modern dark-themed GUI interface
-- ✅ Standalone executable build support for Windows, macOS, and Linux
+Modular architecture with `core/` utilities and `exporters/` for format-specific export logic.
 
 ## License
 
-MIT License - Feel free to use and modify!
+MIT License
 
-## Contributing
+---
 
-Contributions welcome! Please feel free to submit issues or pull requests.
-
-## Credits
-
-Created for VFX professionals working with 3D camera tracking and After Effects compositing workflows across multiple DCCs.
-
-## Support
-
-For issues, questions, or feature requests, please open an issue on the project repository.
+**Documentation:** [WINDOWS_BUILD.md](WINDOWS_BUILD.md) | [MACOS_SETUP.md](MACOS_SETUP.md)
+**Support:** Open an issue on the project repository

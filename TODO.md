@@ -1,80 +1,43 @@
-# TODO - Future Improvements
+# TODO - abcConverter
 
-## Code Architecture
+## Current Status
 
-### Refactor: Extract Core Converter Module
-**Priority:** Medium
-**Version:** 2.0.0
-**Status:** ✅ COMPLETED (2026-01-09)
+**v2.1.0** - ✅ COMPLETE (2026-01-13)
 
-**Previous Structure:**
-```
-a2j_gui.py          # Contains BOTH core logic + GUI (1300 lines)
-  └─ AlembicToJSXConverter class (core converter)
-  └─ AlembicToJSXGUI class (GUI wrapper)
+Multi-format export with vertex animation detection is fully implemented and working.
 
-a2j.py              # CLI that imports from "gui" file
-  └─ from a2j_gui import AlembicToJSXConverter
-```
+## Completed Features
 
-**Current Structure:**
-```
-alembic_converter.py    # Pure module - just the converter logic (✅ DONE)
-  └─ AlembicToJSXConverter class
+- ✅ Multi-format export (After Effects, USD, Maya)
+- ✅ Vertex animation detection
+- ✅ Modular architecture with core utilities and exporters
+- ✅ GUI with format selection
+- ✅ CLI with multi-format arguments
+- ✅ Windows build system with USD support
+- ✅ Comprehensive documentation
 
-a2j_gui.py             # GUI wrapper (✅ DONE)
-  └─ from alembic_converter import AlembicToJSXConverter
-  └─ AlembicToJSXGUI class
+## Future Enhancements (Backlog)
 
-a2j.py                 # CLI wrapper (✅ DONE)
-  └─ from alembic_converter import AlembicToJSXConverter
-```
+### Potential Features
+- [ ] Material/texture export support
+- [ ] Nuke export format
+- [ ] Blender USD import optimization
+- [ ] Batch processing GUI
+- [ ] Custom animation sampling rates
+- [ ] Advanced USD features (materials, lights)
 
-**Benefits:**
-- ✅ Clearer separation of concerns
-- ✅ Neither CLI nor GUI is "dependent" on the other
-- ✅ Module name clearly indicates it's shared core logic
-- ✅ More maintainable - core logic changes in one place
-- ✅ Could easily add third interface (web API, plugin, etc.) without weird imports
-- ✅ Better architecture for testing
+### Build System
+- [ ] Code signing for Windows executable
+- [ ] macOS app bundle with notarization
+- [ ] Linux AppImage distribution
 
-**Implementation Steps:**
-1. ✅ Create new file: `alembic_converter.py`
-2. ✅ Move `AlembicToJSXConverter` class from `a2j_gui.py` to `alembic_converter.py`
-3. ✅ Update `a2j_gui.py` to import from `alembic_converter`
-4. ✅ Update `a2j.py` to import from `alembic_converter`
-5. ⚠️ Test both CLI and GUI to ensure parity (USER SHOULD TEST)
-6. ✅ Update documentation (README.md, build_executable.py)
-
-**Testing Checklist (User should verify):**
-- [ ] GUI produces identical output to v1.0.0
-- [ ] CLI produces identical output to v1.0.0
-- [ ] All coordinate transformations working correctly
-- [ ] OBJ export functioning
-- [ ] Multi-DCC support (SynthEyes, Nuke, etc.) still working
-- [ ] Windows executable builds correctly
-- [ ] macOS setup.sh still works
+### Documentation
+- [ ] Video tutorials
+- [ ] API documentation for developers
+- [ ] Format comparison guide
 
 ---
 
-## Future Features
+**Note:** v2.1.0 is stable and production-ready. Future work is exploratory.
 
-### Add Progress Callbacks for Large Files
-**Priority:** Low
-**Version:** TBD
-
-For very large Alembic files with hundreds of objects, add progress reporting to CLI mode.
-
----
-
-## Documentation
-
-### Add Examples Directory
-**Priority:** Low
-**Version:** TBD
-
-Add example Alembic files and expected JSX output for testing/demonstration purposes.
-
----
-
-_Last Updated: 2026-01-09_
+_Last Updated: 2026-01-13_

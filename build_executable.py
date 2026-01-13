@@ -13,13 +13,13 @@ def build():
 
     # Determine platform
     if sys.platform.startswith('win'):
-        exe_name = 'AlembicToJSX.exe'
+        exe_name = 'abcConverter.exe'
         icon_option = []  # Add '--icon=icon.ico' if you have an icon file
     elif sys.platform.startswith('darwin'):
-        exe_name = 'AlembicToJSX'
+        exe_name = 'abcConverter'
         icon_option = []  # Add '--icon=icon.icns' if you have an icon file
     else:
-        exe_name = 'AlembicToJSX'
+        exe_name = 'abcConverter'
         icon_option = []
 
     print("=" * 50)
@@ -37,13 +37,26 @@ def build():
         '--windowed',  # No console window (GUI mode)
         '--clean',
         '--noconfirm',
-        # Include hidden imports
+        # Include hidden imports - v2.1.0 modular architecture
         '--hidden-import=alembic_converter',
+        '--hidden-import=core.alembic_reader',
+        '--hidden-import=core.animation_detector',
+        '--hidden-import=exporters.base_exporter',
+        '--hidden-import=exporters.ae_exporter',
+        '--hidden-import=exporters.usd_exporter',
+        # Alembic library
         '--hidden-import=alembic',
         '--hidden-import=alembic.Abc',
         '--hidden-import=alembic.AbcGeom',
         '--hidden-import=imath',
         '--hidden-import=numpy',
+        # USD library (optional - may not be installed)
+        '--hidden-import=pxr',
+        '--hidden-import=pxr.Usd',
+        '--hidden-import=pxr.UsdGeom',
+        '--hidden-import=pxr.Gf',
+        '--hidden-import=pxr.Vt',
+        '--hidden-import=pxr.Sdf',
         # Collect all necessary data files
         '--collect-all=alembic',
         '--collect-all=imath',

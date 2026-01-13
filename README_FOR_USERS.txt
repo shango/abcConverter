@@ -1,71 +1,97 @@
 ================================================================================
-ALEMBIC TO AFTER EFFECTS JSX CONVERTER
-User Guide Version 1.0.0-beta.1
+abcConverter - Multi-Format Alembic Converter
+User Guide Version 2.1.0
 ================================================================================
 
 WHAT IS THIS?
 -------------
-This tool converts Alembic (.abc) animation files into After Effects scripts
-(.jsx) that you can run in Adobe After Effects 2025.
+Converts Alembic (.abc) files to multiple formats:
+  • After Effects JSX + OBJ - Cameras, transforms, locators
+  • USD (.usdc) - Full 3D scenes with vertex animation
+  • Maya USD (.usdc) - Maya-optimized USD export
 
-It exports:
-  • Animated cameras (with focal length and aperture)
-  • Geometry transforms (as 3D nulls)
-  • Locators/transforms (as 3D nulls)
+Perfect for VFX workflows across SynthEyes, Nuke, Maya, Houdini, and more.
 
 ================================================================================
 
 INSTALLATION
 ------------
-1. Download and install Visual C++ Redistributable https://aka.ms/vs/17/release/vc_redist.x64.exe
+1. Install Visual C++ Redistributable 2015-2022 (Windows only)
+   https://aka.ms/vs/17/release/vc_redist.x64.exe
 
-2. Save AlembicToJSX.exe anywhere on your computer
-3. That's it! No installation needed.
+2. Extract the abcConverter folder to any location
+3. Run abcConverter.exe - No Python installation needed!
 
 ================================================================================
 
 HOW TO USE
 ----------
-1. Double-click AlembicToJSX.exe
+1. Launch abcConverter.exe
 
-2. Click "Browse" next to "Input Alembic File"
-   → Select your .abc file (from Maya, Houdini, Blender, etc.)
+2. Select Input File
+   → Browse for your .abc file
 
-3. Click "Browse" next to "Output JSX File"
-   → Choose where to save the .jsx file
+3. Select Output Directory
+   → Choose where to save exported files
 
-4. Configure your composition settings:
-   • Composition Name: Name for your AE comp
-   • Frame Rate: Reads settings from alembic file
-   • Duration: Read duration from alembic
+4. Choose Export Formats
+   → Check boxes for formats you want:
+      ☑ After Effects (JSX + OBJ)
+      ☑ USD (.usdc)
+      ☑ Maya USD (.usdc)
 
-5. Click "Convert to JSX"
-   → Watch the progress log
-   → Wait for "Conversion complete!" message
+5. Configure Settings (auto-detected from file)
+   • Shot Name: Auto-filled from filename
+   • Frame Rate: Default 24 fps
+   • Duration: Auto-detected
 
-6. In After Effects:
-   • Go to: File > Scripts > Run Script File
-   • Select your generated .jsx file
-   • Your scene will be imported with all animation!
-   • In the next version, I'll try to include the footage as well.
+6. Click "Convert to Formats"
+   → Files created in separate folders per format
+
+7. Import to Your Software
+   • After Effects: File → Scripts → Run Script File → Select .jsx
+   • Maya: File → Import → Select .usdc
+   • Houdini: File → Import → USD → Select .usdc
 
 ================================================================================
 
-COORDINATE SYSTEM
------------------
-  • Input: Y-up (standard in 3D apps)
-  • Output: Y-up maintained in After Effects
-  • Scale: 1:1 (no conversion)
+OUTPUT STRUCTURE
+----------------
+output_folder/
+├── shotname_ae/      # After Effects export
+│   ├── shotname.jsx
+│   └── *.obj
+├── shotname_usd/     # USD export
+│   └── shotname.usdc
+└── shotname_maya/    # Maya export
+    └── shotname.usdc
 
-Your scene should look exactly as it did in your 3D software!
+================================================================================
+
+WHAT GETS EXPORTED
+------------------
+• Cameras: Full animation with focal length and aperture
+• Meshes: Transform animation + static geometry
+• Vertex Animation: Exported to USD/Maya (skipped for After Effects)
+• Locators: 3D tracking points as nulls (AE) or transforms (USD)
+
+Coordinate conversion handled automatically!
+
+================================================================================
+
+COMPATIBILITY
+-------------
+• After Effects 2025 / 2024
+• Maya 2022+ (USD support)
+• Houdini (USD import)
+• Python 3.11/3.12 (if building from source)
 
 ================================================================================
 
 VERSION INFORMATION
 -------------------
-Alembic: 1.8.10
-After Effects: 2025.x (24.x+)
-Coordinate System: Y-up
-Scale: 1:1
+Version: 2.1.0
+License: MIT
+Support: Open issues at project repository
 
 
