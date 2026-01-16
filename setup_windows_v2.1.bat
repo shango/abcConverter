@@ -1,13 +1,13 @@
 @echo off
 REM ==============================================================================
-REM abcConverter v2.1.0 - Windows Setup Script
+REM MultiConverter v2.1.0 - Windows Setup Script
 REM ==============================================================================
 REM This script sets up everything needed to build the Windows executable
 REM Includes USD library setup for multi-format export
 REM ==============================================================================
 
 echo ====================================
-echo abcConverter v2.1.0 - Windows Setup
+echo MultiConverter v2.1.0 - Windows Setup
 echo ====================================
 echo.
 
@@ -98,7 +98,7 @@ python -m pip install --upgrade pip
 REM Install basic dependencies
 echo.
 echo Installing basic dependencies...
-pip install numpy pyinstaller
+pip install numpy pyinstaller sv_ttk
 
 REM Download and install PyAlembic wheel
 echo.

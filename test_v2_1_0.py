@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick test script for abcConverter v2.1.0
+Quick test script for MultiConverter v2.1.0
 Verifies all modules import correctly and basic functionality works
 """
 
@@ -156,7 +156,7 @@ def main():
     """Run all tests"""
     print()
     print("╔" + "=" * 58 + "╗")
-    print("║" + " " * 10 + "abcConverter v2.1.0 Test Suite" + " " * 17 + "║")
+    print("║" + " " * 9 + "MultiConverter v2.1.0 Test Suite" + " " * 17 + "║")
     print("╚" + "=" * 58 + "╝")
     print()
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Build script for creating standalone executables using PyInstaller
-Run this after setting up the environment with setup.sh/setup.bat
+Run this after setting up the environment with setup_windows_v2.1.bat
 """
 
 import PyInstaller.__main__
@@ -13,13 +13,13 @@ def build():
 
     # Determine platform
     if sys.platform.startswith('win'):
-        exe_name = 'abcConverter.exe'
+        exe_name = 'MultiConverter.exe'
         icon_option = []  # Add '--icon=icon.ico' if you have an icon file
     elif sys.platform.startswith('darwin'):
-        exe_name = 'abcConverter'
+        exe_name = 'MultiConverter'
         icon_option = []  # Add '--icon=icon.icns' if you have an icon file
     else:
-        exe_name = 'abcConverter'
+        exe_name = 'MultiConverter'
         icon_option = []
 
     print("=" * 50)
@@ -37,10 +37,16 @@ def build():
         '--windowed',  # No console window (GUI mode)
         '--clean',
         '--noconfirm',
-        # Include hidden imports - v2.2.0 modular architecture
+        # Include hidden imports - v2.3.0 modular architecture
         '--hidden-import=alembic_converter',
-        '--hidden-import=core.alembic_reader',
+        # Readers module (v2.3.0 - supports Alembic and USD input)
+        '--hidden-import=readers',
+        '--hidden-import=readers.base_reader',
+        '--hidden-import=readers.alembic_reader',
+        '--hidden-import=readers.usd_reader',
+        # Core module
         '--hidden-import=core.animation_detector',
+        # Exporters module
         '--hidden-import=exporters.base_exporter',
         '--hidden-import=exporters.ae_exporter',
         '--hidden-import=exporters.usd_exporter',
@@ -51,7 +57,7 @@ def build():
         '--hidden-import=alembic.AbcGeom',
         '--hidden-import=imath',
         '--hidden-import=numpy',
-        # USD library (optional - may not be installed)
+        # USD library (for USD input/output)
         '--hidden-import=pxr',
         '--hidden-import=pxr.Usd',
         '--hidden-import=pxr.UsdGeom',

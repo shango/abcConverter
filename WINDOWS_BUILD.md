@@ -1,6 +1,6 @@
 # Windows Build Instructions (v2.1.0)
 
-Complete guide for building abcConverter with multi-format export on Windows.
+Complete guide for building MultiConverter with multi-format export on Windows.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ This will:
 build_windows_v2.1.bat
 ```
 
-This creates: **`dist\abcConverter\`** folder with the executable and all dependencies
+This creates: **`dist\MultiConverter\`** folder with the executable and all dependencies
 
 **Time:** ~5-10 minutes (PyInstaller bundling)
 
@@ -57,8 +57,8 @@ After running `build_windows_v2.1.bat`, you'll have:
 
 ```
 dist/
-  └── abcConverter/          (~70-100 MB with USD support)
-      ├── abcConverter.exe   - Main executable
+  └── MultiConverter/          (~70-100 MB with USD support)
+      ├── MultiConverter.exe   - Main executable
       ├── python312.dll      - Python runtime
       ├── pxr/               - USD libraries (if installed)
       ├── _internal/         - PyInstaller bundled files
@@ -72,21 +72,21 @@ This **folder distribution** contains:
 - GUI application
 - Everything needed to run!
 
-**Important:** The entire `abcConverter/` folder must be distributed together. The .exe will NOT work if copied separately from the folder.
+**Important:** The entire `MultiConverter/` folder must be distributed together. The .exe will NOT work if copied separately from the folder.
 
 ## Distribution
 
 ### For End Users
 
 **Package for distribution:**
-1. Zip the entire `dist\abcConverter\` folder
-2. Name it `abcConverter-v2.1.0-windows.zip`
+1. Zip the entire `dist\MultiConverter\` folder
+2. Name it `MultiConverter-v2.1.0-windows.zip`
 3. Include Visual C++ Redistributable link: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 **Users need to:**
 1. Install Visual C++ Redistributable (if not already installed)
 2. Extract the zip file to any folder
-3. Run `abcConverter.exe` from the extracted folder
+3. Run `MultiConverter.exe` from the extracted folder
 4. Use the GUI to convert to After Effects, USD, or Maya!
 
 **File size expectations:**
@@ -136,7 +136,7 @@ This is normal for PyInstaller bundles with complex C extensions. The zip file w
 **Solution:** This should be fixed in v2.1.0 with the new build script. If you still see this error:
 1. Verify USD is installed: `python -c "from pxr import Usd; print('USD OK')"`
 2. Check the build output shows "USD library found"
-3. Verify `dist\abcConverter\pxr\` folder exists and contains `.pyd` files
+3. Verify `dist\MultiConverter\pxr\` folder exists and contains `.pyd` files
 4. Rebuild with clean: `build_windows_v2.1.bat` (it runs `--clean` automatically)
 
 ### "The code execution cannot proceed because VCRUNTIME140.dll was not found"
@@ -182,8 +182,8 @@ alembic_to_jsx/
 ├── venv/                          # Virtual environment (don't distribute)
 ├── build/                         # PyInstaller temp files (don't distribute)
 ├── dist/
-│   └── abcConverter/             # ✅ ZIP AND DISTRIBUTE THIS FOLDER
-│       ├── abcConverter.exe
+│   └── MultiConverter/             # ✅ ZIP AND DISTRIBUTE THIS FOLDER
+│       ├── MultiConverter.exe
 │       ├── python312.dll
 │       ├── pxr/                  # USD libraries
 │       └── _internal/            # Dependencies
@@ -223,8 +223,8 @@ This is the recommended option because:
 ## Next Steps
 
 After building:
-1. Test `dist\abcConverter\abcConverter.exe` on a clean Windows machine (no Python installed)
-2. Zip the `dist\abcConverter\` folder as `abcConverter-v2.1.0-windows.zip`
+1. Test `dist\MultiConverter\MultiConverter.exe` on a clean Windows machine (no Python installed)
+2. Zip the `dist\MultiConverter\` folder as `MultiConverter-v2.1.0-windows.zip`
 3. Create a release on GitHub with the zipped folder
 4. Test After Effects, USD, and Maya export functionality
 5. Write user documentation
@@ -242,8 +242,8 @@ For issues with:
 | Step | Time | Output |
 |------|------|--------|
 | Setup (first time) | ~2-5 min | venv + packages + USD |
-| Build | ~5-10 min | dist/abcConverter/ folder |
-| Zip folder | ~30 sec | abcConverter-v2.1.0-windows.zip |
+| Build | ~5-10 min | dist/MultiConverter/ folder |
+| Zip folder | ~30 sec | MultiConverter-v2.1.0-windows.zip |
 | **Total** | **~8-16 min** | **Ready to distribute!** |
 
 Subsequent builds are faster (~3-5 min) since dependencies are cached.

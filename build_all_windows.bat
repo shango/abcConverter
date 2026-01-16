@@ -1,12 +1,12 @@
 @echo off
 REM ==============================================================================
-REM abcConverter v2.1.0 - Complete Windows Setup and Build
+REM MultiConverter v2.1.0 - Complete Windows Setup and Build
 REM ==============================================================================
 REM This script runs both setup and build in one go
 REM ==============================================================================
 
 echo ====================================
-echo abcConverter v2.1.0
+echo MultiConverter v2.1.0
 echo Complete Setup and Build
 echo ====================================
 echo.
@@ -48,6 +48,6 @@ echo ====================================
 echo All Done!
 echo ====================================
 echo.
-echo Your executable is ready at: dist\abcConverter.exe
+echo Your executable is ready at: dist\MultiConverter.exe
 echo.
 pause

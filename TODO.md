@@ -1,17 +1,22 @@
-# TODO - abcConverter
+# TODO - MultiConverter
 
 ## Current Status
 
-**v2.1.0** - ✅ COMPLETE (2026-01-13)
+**v2.5.0** - ✅ COMPLETE (2026-01-16)
 
-Multi-format export with vertex animation detection is fully implemented and working.
+GUI modernization with Sun Valley (sv_ttk) dark theme and tabbed interface. Convert and Log tabs for cleaner workflow. All exporters are format-agnostic and work with any input format.
 
 ## Completed Features
 
+- ✅ **GUI Modernization** (v2.5.0) - Sun Valley dark theme, tabbed interface (Convert/Log)
+- ✅ **SceneData Architecture** (v2.4.0) - Format-agnostic intermediate data structure
+- ✅ **USD to After Effects Export** (v2.4.0) - Any input format → Any output format
+- ✅ **USD Input Support** (v2.3.0) - Accept .usd, .usda, .usdc files
+- ✅ Modular readers architecture (AlembicReader, USDReader)
 - ✅ Multi-format export (After Effects, USD, Maya)
 - ✅ Vertex animation detection
-- ✅ Modular architecture with core utilities and exporters
-- ✅ GUI with format selection
+- ✅ Modular architecture with readers, core utilities, and exporters
+- ✅ GUI with format selection and USD file support
 - ✅ CLI with multi-format arguments
 - ✅ Windows build system with USD support
 - ✅ Comprehensive documentation
@@ -28,8 +33,6 @@ Multi-format export with vertex animation detection is fully implemented and wor
 
 ### Build System
 - [ ] Code signing for Windows executable
-- [ ] macOS app bundle with notarization
-- [ ] Linux AppImage distribution
 
 ### Documentation
 - [ ] Video tutorials
@@ -38,6 +41,6 @@ Multi-format export with vertex animation detection is fully implemented and wor
 
 ---
 
-**Note:** v2.1.0 is stable and production-ready. Future work is exploratory.
+**Note:** v2.5.0 is stable and production-ready. Future work is exploratory.
 
-_Last Updated: 2026-01-13_
+_Last Updated: 2026-01-16_

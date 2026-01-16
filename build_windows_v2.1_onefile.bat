@@ -1,11 +1,13 @@
 @echo off
 REM ==============================================================================
-REM MultiConverter v2.5.0 - Windows Build Script (--onedir mode for USD)
-REM Creates a directory with executable and dependencies
+REM MultiConverter v2.5.0 - Windows Build Script (--onefile mode)
+REM Creates a single standalone .exe file
+REM NOTE: --onefile may have issues with USD DLLs - use --onedir if problems occur
 REM ==============================================================================
 
 echo ====================================
 echo Building MultiConverter v2.5.0
+echo (Single File Mode)
 echo ====================================
 echo.
 
@@ -42,13 +44,16 @@ echo.
 echo Checking for USD library...
 python -c "from pxr import Usd" >nul 2>&1
 if errorlevel 1 (
-    echo ⚠ WARNING: USD library not found
+    echo WARNING: USD library not found
     echo   USD and Maya export will not be available in the executable
     echo   To add USD support, run setup_windows_v2.1.bat and install USD
     echo.
     set USD_AVAILABLE=NO
 ) else (
-    echo ✓ USD library found - Multi-format export enabled
+    echo USD library found - Multi-format export enabled
+    echo.
+    echo WARNING: --onefile mode may have issues with USD DLLs
+    echo If the executable fails to run, try build_windows_v2.1_onedir.bat instead
     set USD_AVAILABLE=YES
 )
 
@@ -68,18 +73,17 @@ if exist "MultiConverter.spec" (
 
 echo.
 echo ====================================
-echo Running PyInstaller (--onedir mode)
+echo Running PyInstaller (--onefile mode)
 echo ====================================
-echo This creates a directory with the
-echo executable and all dependencies
+echo This creates a single executable file
+echo (may take longer and be larger than --onedir)
 echo ====================================
 echo.
 
-REM Build the executable with v2.3.0 modular architecture
-REM Using --onedir instead of --onefile for better USD DLL support
+REM Build the executable with --onefile
 %PYINSTALLER_CMD% ^
     --name=MultiConverter ^
-    --onedir ^
+    --onefile ^
     --windowed ^
     --clean ^
     --noconfirm ^
@@ -89,7 +93,10 @@ REM Using --onedir instead of --onefile for better USD DLL support
     --hidden-import=readers.base_reader ^
     --hidden-import=readers.alembic_reader ^
     --hidden-import=readers.usd_reader ^
+    --hidden-import=core ^
+    --hidden-import=core.scene_data ^
     --hidden-import=core.animation_detector ^
+    --hidden-import=exporters ^
     --hidden-import=exporters.base_exporter ^
     --hidden-import=exporters.ae_exporter ^
     --hidden-import=exporters.usd_exporter ^
@@ -126,6 +133,8 @@ if errorlevel 1 (
     echo   - Missing dependencies: Run setup_windows_v2.1.bat
     echo   - Import errors: Check that all modules are in place
     echo.
+    echo If --onefile fails, try build_windows_v2.1_onedir.bat instead
+    echo.
     pause
     exit /b 1
 )
@@ -135,41 +144,40 @@ echo ====================================
 echo Build Complete!
 echo ====================================
 echo.
-echo Executable location: dist\MultiConverter\MultiConverter.exe
+echo Executable location: dist\MultiConverter.exe
 echo.
 
-REM Show directory size
-if exist "dist\MultiConverter" (
-    echo Distribution folder contents:
-    dir dist\MultiConverter
+REM Show file size
+if exist "dist\MultiConverter.exe" (
+    echo File size:
+    dir dist\MultiConverter.exe | find "MultiConverter"
     echo.
 )
 
 echo Features included:
-echo   ✓ After Effects JSX + OBJ export
+echo   - After Effects JSX + OBJ export
 if "%USD_AVAILABLE%"=="YES" (
-    echo   ✓ USD .usdc export
-    echo   ✓ Maya USD export
-    echo   ✓ Maya MA export
+    echo   - USD .usdc export
+    echo   - Maya USD export
+    echo   - Maya MA export
 ) else (
-    echo   ✗ USD export (library not found)
-    echo   ✗ Maya export (library not found)
-    echo   ✓ Maya MA export
+    echo   x USD export (library not found)
+    echo   x Maya export (library not found)
+    echo   - Maya MA export
 )
 
 echo.
 echo Distribution notes:
-echo   - Distribute: entire dist\MultiConverter\ folder
-echo   - Run: dist\MultiConverter\MultiConverter.exe
+echo   - Distribute: dist\MultiConverter.exe (single file!)
 echo   - Users need: Microsoft Visual C++ Redistributable 2015-2022
 echo     Download: https://aka.ms/vs/17/release/vc_redist.x64.exe
 echo.
 
-if "%USD_AVAILABLE%"=="NO" (
+if "%USD_AVAILABLE%"=="YES" (
     echo.
-    echo To enable USD/Maya export in future builds:
-    echo   1. Install USD library (see setup_windows_v2.1.bat)
-    echo   2. Rebuild with this script
+    echo NOTE: If the executable crashes or fails to start,
+    echo USD DLLs may not be loading correctly in --onefile mode.
+    echo Try build_windows_v2.1_onedir.bat for better compatibility.
     echo.
 )
 

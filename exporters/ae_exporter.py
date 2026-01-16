@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """
 After Effects Exporter Module
-Exports Alembic data to After Effects JSX + OBJ format with vertex animation filtering
+Exports SceneData to After Effects JSX + OBJ format with vertex animation filtering
+
+v2.5.0 - Refactored to use SceneData instead of reader objects.
+         Now format-agnostic - works with any input format!
+         USD to After Effects export is now supported.
 """
 
 import os
 from pathlib import Path
 
-from alembic.Abc import WrapExistingFlag
-from alembic.AbcGeom import IXform, ICamera, IPolyMesh
-
 from .base_exporter import BaseExporter
+from core.scene_data import SceneData, AnimationType
 
 
 class AfterEffectsExporter(BaseExporter):
@@ -18,6 +20,9 @@ class AfterEffectsExporter(BaseExporter):
 
     After Effects can only handle transform animation (position, rotation, scale).
     Meshes with vertex animation (deformation) must be skipped entirely.
+
+    v2.5.0: Now works with SceneData instead of reader objects - format-agnostic.
+            Supports Alembic and USD input files.
 
     Exports:
     - Single JSX file with scene setup and animation
@@ -30,16 +35,13 @@ class AfterEffectsExporter(BaseExporter):
     def get_file_extension(self):
         return "jsx"
 
-    def export(self, reader, output_path, shot_name, fps, frame_count, animation_data):
+    def export(self, scene_data: SceneData, output_path, shot_name):
         """Export to After Effects JSX format
 
         Args:
-            reader: AlembicReader instance
+            scene_data: SceneData instance with pre-extracted animation and geometry
             output_path: Output directory path
             shot_name: Shot name for composition and file naming
-            fps: Frames per second
-            frame_count: Total number of frames
-            animation_data: Animation analysis with keys 'vertex_animated', 'transform_only', 'static'
 
         Returns:
             dict: Export results with keys:
@@ -52,27 +54,28 @@ class AfterEffectsExporter(BaseExporter):
         try:
             output_dir = self.validate_output_path(output_path)
 
-            # Log vertex animation skipping
-            skipped_meshes = animation_data['vertex_animated']
+            # Extract info from SceneData
+            fps = scene_data.metadata.fps
+            frame_count = scene_data.metadata.frame_count
+            comp_width = scene_data.metadata.width
+            comp_height = scene_data.metadata.height
+            footage_path = scene_data.metadata.footage_path
+            source_filename = Path(scene_data.metadata.source_file_path).name
+
+            # Get skipped meshes (vertex animated)
+            skipped_meshes = scene_data.animation_categories.vertex_animated
             if skipped_meshes:
-                self.log(f"⚠ Skipping {len(skipped_meshes)} meshes with vertex animation:")
+                self.log(f"Skipping {len(skipped_meshes)} meshes with vertex animation:")
                 for mesh_name in skipped_meshes:
                     self.log(f"  - {mesh_name}")
 
-            # Get scene info
-            comp_width, comp_height = reader.extract_render_resolution()
-            footage_path = reader.extract_footage_path()
             duration = frame_count / fps
-
-            # Build parent map
-            parent_map = reader.get_parent_map()
-            objects = reader.get_all_objects()
 
             # Generate JSX
             jsx_lines = []
 
             # Header
-            jsx_lines.extend(self._generate_header(shot_name, reader.abc_file.name))
+            jsx_lines.extend(self._generate_header(shot_name, source_filename))
 
             # Helper functions
             jsx_lines.extend(self._generate_helper_functions())
@@ -94,120 +97,34 @@ class AfterEffectsExporter(BaseExporter):
             if footage_path:
                 jsx_lines.extend(self._generate_footage_import(footage_path, shot_name))
 
-            # Process objects
-            processed_names = set()
+            # Process cameras
+            for camera in scene_data.cameras:
+                cam_name = camera.parent_name if camera.parent_name else camera.name
+                self.log(f"Processing camera: {cam_name}")
+                camera_jsx = self._process_camera(camera, cam_name, frame_count, fps, comp_width, comp_height)
+                jsx_lines.extend(camera_jsx)
+                jsx_lines.append("")
 
-            for obj in objects:
-                name = obj.getName()
+            # Process meshes (skip vertex-animated ones)
+            for mesh in scene_data.meshes:
+                mesh_name = mesh.parent_name if mesh.parent_name else mesh.name
 
-                if name == "ABC" or not name:
+                # Skip if mesh has vertex animation
+                if mesh.animation_type == AnimationType.VERTEX_ANIMATED:
+                    self.log(f"Skipping vertex-animated mesh: {mesh_name}")
                     continue
 
-                if name in processed_names:
-                    continue
+                self.log(f"Processing geometry: {mesh_name}")
+                geom_jsx = self._process_geometry(mesh, mesh_name, frame_count, fps, output_dir, comp_width, comp_height)
+                jsx_lines.extend(geom_jsx)
+                jsx_lines.append("")
 
-                # Skip helper/organizational objects
-                parent = parent_map.get(name)
-                parent_name_for_check = parent.getName() if parent else None
-                if self._should_skip_object(name, parent_name_for_check):
-                    continue
-
-                # Skip organizational groups
-                if IXform.matches(obj.getHeader()) and self._is_organizational_group(obj):
-                    continue
-
-                # Process cameras
-                if ICamera.matches(obj.getHeader()):
-                    parent = parent_map.get(name)
-                    if parent and IXform.matches(parent.getHeader()):
-                        parent_name = parent.getName()
-                        transform_obj = parent
-                    else:
-                        parent_name = name
-                        transform_obj = obj
-
-                    self.log(f"Processing camera: {parent_name}")
-                    camera_jsx = self._process_camera(reader, obj, transform_obj, parent_name,
-                                                     frame_count, fps, comp_width, comp_height)
-                    jsx_lines.extend(camera_jsx)
-                    jsx_lines.append("")
-                    processed_names.add(name)
-                    if parent_name != name:
-                        processed_names.add(parent_name)
-
-                # Process meshes (skip vertex-animated ones)
-                elif IPolyMesh.matches(obj.getHeader()):
-                    # Skip if mesh has vertex animation
-                    if name in skipped_meshes:
-                        self.log(f"Skipping vertex-animated mesh: {name}")
-                        processed_names.add(name)
-                        continue
-
-                    parent = parent_map.get(name)
-                    if parent and IXform.matches(parent.getHeader()):
-                        parent_name = parent.getName()
-                        transform_obj = parent
-                    else:
-                        parent_name = None
-                        transform_obj = obj
-
-                    self.log(f"Processing geometry: {parent_name or name}")
-                    geom_jsx = self._process_geometry(reader, obj, transform_obj, name, parent_name,
-                                                      frame_count, fps, output_dir, comp_width, comp_height)
-                    jsx_lines.extend(geom_jsx)
-                    jsx_lines.append("")
-                    processed_names.add(name)
-                    if parent_name:
-                        processed_names.add(parent_name)
-
-                # Process transforms (cameras/meshes with Nuke-style nesting, or locators)
-                elif IXform.matches(obj.getHeader()):
-                    # Check for nested camera
-                    nested_camera = self._find_camera_recursive(obj)
-                    if nested_camera:
-                        camera_name = nested_camera.getName()
-                        self.log(f"Processing camera (Nuke-style): {name} -> {camera_name}")
-                        camera_jsx = self._process_camera(reader, nested_camera, obj, name,
-                                                         frame_count, fps, comp_width, comp_height)
-                        jsx_lines.extend(camera_jsx)
-                        jsx_lines.append("")
-                        processed_names.add(name)
-                        processed_names.add(camera_name)
-                        for child in obj.children:
-                            if IXform.matches(child.getHeader()):
-                                processed_names.add(child.getName())
-
-                    # Check for nested mesh
-                    elif self._find_mesh_recursive(obj):
-                        nested_mesh = self._find_mesh_recursive(obj)
-                        mesh_name = nested_mesh.getName()
-
-                        # Skip if mesh has vertex animation
-                        if mesh_name in skipped_meshes:
-                            self.log(f"Skipping vertex-animated mesh: {mesh_name}")
-                            processed_names.add(name)
-                            processed_names.add(mesh_name)
-                            continue
-
-                        self.log(f"Processing geometry (Nuke-style): {name} -> {mesh_name}")
-                        geom_jsx = self._process_geometry(reader, nested_mesh, obj, mesh_name, name,
-                                                          frame_count, fps, output_dir, comp_width, comp_height)
-                        jsx_lines.extend(geom_jsx)
-                        jsx_lines.append("")
-                        processed_names.add(name)
-                        processed_names.add(mesh_name)
-                        for child in obj.children:
-                            if IXform.matches(child.getHeader()):
-                                processed_names.add(child.getName())
-
-                    # Process as locator
-                    else:
-                        self.log(f"Processing locator: {name}")
-                        loc_jsx = self._process_locator(reader, obj, name, frame_count, fps,
-                                                       comp_width, comp_height)
-                        jsx_lines.extend(loc_jsx)
-                        jsx_lines.append("")
-                        processed_names.add(name)
+            # Process transforms (locators/nulls)
+            for transform in scene_data.transforms:
+                self.log(f"Processing locator: {transform.name}")
+                loc_jsx = self._process_locator(transform, transform.name, frame_count, fps, comp_width, comp_height)
+                jsx_lines.extend(loc_jsx)
+                jsx_lines.append("")
 
             # Footer
             jsx_lines.extend(self._generate_footer())
@@ -244,11 +161,11 @@ class AfterEffectsExporter(BaseExporter):
                 'files': []
             }
 
-    def _generate_header(self, shot_name, abc_filename):
+    def _generate_header(self, shot_name, source_filename):
         """Generate JSX file header"""
         lines = []
-        lines.append("// Auto-generated JSX from Alembic")
-        lines.append(f"// Exported from: {abc_filename}")
+        lines.append("// Auto-generated JSX from scene data")
+        lines.append(f"// Exported from: {source_filename}")
         lines.append("// Y-up coordinate system, 1:1 scale")
         lines.append("")
         lines.append("app.activate();")
@@ -317,7 +234,7 @@ class AfterEffectsExporter(BaseExporter):
     def _generate_footage_import(self, footage_path, shot_name):
         """Generate JSX code for footage import"""
         lines = []
-        lines.append("// Import footage file from Alembic metadata")
+        lines.append("// Import footage file from scene metadata")
         lines.append(f"var footagePath = '{footage_path.replace(chr(92), '/')}';")
         lines.append("var footageFile = new File(footagePath);")
         lines.append("if (footageFile.exists) {")
@@ -352,64 +269,38 @@ class AfterEffectsExporter(BaseExporter):
         lines.append("SceneImportFunction();")
         return lines
 
-    def _collect_animation_data(self, reader, obj, frame_count, fps):
-        """Collect all animation keyframes into arrays"""
-        times_array = []
-        pos_array = []
-        rotX_array = []
-        rotY_array = []
-        rotZ_array = []
-        scale_array = []
-
-        # Collect keyframes starting from frame 1
-        for frame in range(1, frame_count + 1):
-            time_seconds = frame / fps
-            pos, rot, scale = reader.get_transform_at_time(obj, time_seconds)
-
-            times_array.append(time_seconds)
-            pos_array.append(pos)
-            rotX_array.append(rot[0])
-            rotY_array.append(rot[1])
-            rotZ_array.append(rot[2])
-            # AE scale is in percent, compensate for world-scale OBJ vertices
-            scale_array.append([s * 2 for s in scale])
-
-        return times_array, pos_array, rotX_array, rotY_array, rotZ_array, scale_array
-
-    def _is_animated(self, times, pos, rotX, rotY, rotZ, scale):
-        """Check if animation data has any variation (not static)"""
-        if len(times) <= 1:
+    def _is_animated(self, keyframes):
+        """Check if keyframes have any variation (not static)"""
+        if len(keyframes) <= 1:
             return False
 
-        # Check if any values differ from the first frame
-        for i in range(1, len(times)):
+        first = keyframes[0]
+        for kf in keyframes[1:]:
             # Check position
-            if (abs(pos[i][0] - pos[0][0]) > 0.0001 or
-                abs(pos[i][1] - pos[0][1]) > 0.0001 or
-                abs(pos[i][2] - pos[0][2]) > 0.0001):
+            if (abs(kf.position[0] - first.position[0]) > 0.0001 or
+                abs(kf.position[1] - first.position[1]) > 0.0001 or
+                abs(kf.position[2] - first.position[2]) > 0.0001):
                 return True
-            # Check rotation
-            if (abs(rotX[i] - rotX[0]) > 0.0001 or
-                abs(rotY[i] - rotY[0]) > 0.0001 or
-                abs(rotZ[i] - rotZ[0]) > 0.0001):
+            # Check rotation (using AE rotation)
+            if (abs(kf.rotation_ae[0] - first.rotation_ae[0]) > 0.0001 or
+                abs(kf.rotation_ae[1] - first.rotation_ae[1]) > 0.0001 or
+                abs(kf.rotation_ae[2] - first.rotation_ae[2]) > 0.0001):
                 return True
             # Check scale
-            if (abs(scale[i][0] - scale[0][0]) > 0.0001 or
-                abs(scale[i][1] - scale[0][1]) > 0.0001 or
-                abs(scale[i][2] - scale[0][2]) > 0.0001):
+            if (abs(kf.scale[0] - first.scale[0]) > 0.0001 or
+                abs(kf.scale[1] - first.scale[1]) > 0.0001 or
+                abs(kf.scale[2] - first.scale[2]) > 0.0001):
                 return True
 
         return False
 
-    def _process_camera(self, reader, cam_obj, transform_obj, name, frame_count, fps, comp_width, comp_height):
+    def _process_camera(self, camera, name, frame_count, fps, comp_width, comp_height):
         """Process camera and return JSX with array-based animation"""
         jsx = []
-        camera = ICamera(cam_obj, WrapExistingFlag.kWrapExisting)
-        cam_schema = camera.getSchema()
-        cam_sample = cam_schema.getValue()
 
-        focal_length = cam_sample.getFocalLength()
-        h_aperture = cam_sample.getHorizontalAperture() * 10  # cm to mm
+        # Get camera properties from SceneData
+        focal_length = camera.properties.focal_length
+        h_aperture = camera.properties.h_aperture * 10  # cm to mm
 
         # Calculate AE zoom value
         ae_zoom = focal_length * comp_width / h_aperture
@@ -420,30 +311,31 @@ class AfterEffectsExporter(BaseExporter):
         jsx.append(f"var {layer_var} = comp.layers.addCamera('{name}', [0, 0]);")
         jsx.append(f"{layer_var}.autoOrient = AutoOrientType.NO_AUTO_ORIENT;")
 
-        # Collect animation data
-        times, pos, rotX, rotY, rotZ, scale = self._collect_animation_data(reader, transform_obj, frame_count, fps)
-
-        # Generate array definitions and population
+        # Generate array definitions
         jsx.append(f"var timesArray = new Array();")
         jsx.append(f"var posArray = new Array();")
         jsx.append(f"var rotXArray = new Array();")
         jsx.append(f"var rotYArray = new Array();")
         jsx.append(f"var rotZArray = new Array();")
 
-        # Coordinate system transformation (Alembic Y-up to AE composition space)
+        # Coordinate system transformation (Y-up to AE composition space)
         comp_center_x = comp_width / 2
         comp_center_y = comp_height / 2
 
-        for i in range(len(times)):
-            x_ae = pos[i][0] * 10 + comp_center_x
-            y_ae = -pos[i][1] * 10 + comp_center_y
-            z_ae = -pos[i][2] * 10
+        for kf in camera.keyframes:
+            # AE time: frame 1 = time 0, frame 2 = time 1/fps, etc.
+            time_seconds = (kf.frame - 1) / fps
 
-            jsx.append(f"timesArray.push({times[i]:.10f});")
+            # Transform coordinates for AE
+            x_ae = kf.position[0] * 10 + comp_center_x
+            y_ae = -kf.position[1] * 10 + comp_center_y
+            z_ae = -kf.position[2] * 10
+
+            jsx.append(f"timesArray.push({time_seconds:.10f});")
             jsx.append(f"posArray.push([{x_ae:.10f}, {y_ae:.10f}, {z_ae:.10f}]);")
-            jsx.append(f"rotXArray.push({-rotX[i]:.10f});")
-            jsx.append(f"rotYArray.push({rotY[i]:.10f});")
-            jsx.append(f"rotZArray.push({rotZ[i]:.10f});")
+            jsx.append(f"rotXArray.push({-kf.rotation_ae[0]:.10f});")
+            jsx.append(f"rotYArray.push({kf.rotation_ae[1]:.10f});")
+            jsx.append(f"rotZArray.push({kf.rotation_ae[2]:.10f});")
 
         # Apply arrays to properties
         jsx.append(f"{layer_var}.position.setValuesAtTimes(timesArray, posArray);")
@@ -456,16 +348,15 @@ class AfterEffectsExporter(BaseExporter):
 
         return jsx
 
-    def _process_geometry(self, reader, mesh_obj, transform_obj, name, parent_name, frame_count, fps, output_dir, comp_width, comp_height):
+    def _process_geometry(self, mesh, name, frame_count, fps, output_dir, comp_width, comp_height):
         """Process geometry mesh with OBJ export and transform"""
         jsx = []
-        layer_name = parent_name if parent_name else name
-        layer_var = f"mesh_{layer_name.replace(' ', '_').replace('-', '_')}"
+        layer_var = f"mesh_{name.replace(' ', '_').replace('-', '_')}"
 
-        # Export OBJ
-        obj_filename = f"{layer_name}.obj"
+        # Export OBJ from SceneData geometry
+        obj_filename = f"{name}.obj"
         obj_path = os.path.join(output_dir, obj_filename)
-        self._export_mesh_to_obj(mesh_obj, obj_path)
+        self._export_mesh_to_obj(mesh, obj_path)
 
         # Generate OBJ import code
         jsx.append(f"var importOptions = new ImportOptions();")
@@ -474,17 +365,16 @@ class AfterEffectsExporter(BaseExporter):
         jsx.append(f"objFootage.selected = false;")
         jsx.append(f"app.beginSuppressDialogs();")
         jsx.append(f"var {layer_var} = comp.layers.add(objFootage);")
-        jsx.append(f"{layer_var}.name = '{layer_name}';")
+        jsx.append(f"{layer_var}.name = '{name}';")
         jsx.append(f"app.endSuppressDialogs(true);")
 
         # Set anchor point to [0,0,0]
         jsx.append(f"{layer_var}.anchorPoint.setValue([0, 0, 0]);")
 
-        # Collect animation data
-        times, pos, rotX, rotY, rotZ, scale = self._collect_animation_data(reader, transform_obj, frame_count, fps)
+        keyframes = mesh.keyframes
 
         # Check if animated or static
-        if len(times) > 0 and self._is_animated(times, pos, rotX, rotY, rotZ, scale):
+        if keyframes and self._is_animated(keyframes):
             # Animated - use setValuesAtTimes
             jsx.append(f"var timesArray = new Array();")
             jsx.append(f"var posArray = new Array();")
@@ -496,42 +386,52 @@ class AfterEffectsExporter(BaseExporter):
             comp_center_x = comp_width / 2
             comp_center_y = comp_height / 2
 
-            for i in range(len(times)):
-                x_ae = pos[i][0] * 10 + comp_center_x
-                y_ae = -pos[i][1] * 10 + comp_center_y
-                z_ae = -pos[i][2] * 10
+            for kf in keyframes:
+                time_seconds = (kf.frame - 1) / fps
 
-                jsx.append(f"timesArray.push({times[i]:.10f});")
+                x_ae = kf.position[0] * 10 + comp_center_x
+                y_ae = -kf.position[1] * 10 + comp_center_y
+                z_ae = -kf.position[2] * 10
+
+                # AE scale is in percent, compensate for world-scale OBJ vertices
+                scale = [s * 2 for s in kf.scale]
+
+                jsx.append(f"timesArray.push({time_seconds:.10f});")
                 jsx.append(f"posArray.push([{x_ae:.10f}, {y_ae:.10f}, {z_ae:.10f}]);")
-                jsx.append(f"rotXArray.push({-rotX[i]:.10f});")
-                jsx.append(f"rotYArray.push({rotY[i]:.10f});")
-                jsx.append(f"rotZArray.push({rotZ[i]:.10f});")
-                jsx.append(f"scaleArray.push([{scale[i][0]:.10f}, {scale[i][1]:.10f}, {scale[i][2]:.10f}]);")
+                jsx.append(f"rotXArray.push({-kf.rotation_ae[0]:.10f});")
+                jsx.append(f"rotYArray.push({kf.rotation_ae[1]:.10f});")
+                jsx.append(f"rotZArray.push({kf.rotation_ae[2]:.10f});")
+                jsx.append(f"scaleArray.push([{scale[0]:.10f}, {scale[1]:.10f}, {scale[2]:.10f}]);")
 
             jsx.append(f"{layer_var}.position.setValuesAtTimes(timesArray, posArray);")
             jsx.append(f"{layer_var}.rotationX.setValuesAtTimes(timesArray, rotXArray);")
             jsx.append(f"{layer_var}.rotationY.setValuesAtTimes(timesArray, rotYArray);")
             jsx.append(f"{layer_var}.rotationZ.setValuesAtTimes(timesArray, rotZArray);")
             jsx.append(f"{layer_var}.scale.setValuesAtTimes(timesArray, scaleArray);")
-        elif len(times) > 0:
+        elif keyframes:
             # Static - use setValue with first frame values
+            kf = keyframes[0]
+
             comp_center_x = comp_width / 2
             comp_center_y = comp_height / 2
 
-            x_ae = pos[0][0] * 10 + comp_center_x
-            y_ae = -pos[0][1] * 10 + comp_center_y
-            z_ae = -pos[0][2] * 10
+            x_ae = kf.position[0] * 10 + comp_center_x
+            y_ae = -kf.position[1] * 10 + comp_center_y
+            z_ae = -kf.position[2] * 10
 
-            jsx.append(f"{layer_var}.scale.setValue([{scale[0][0]:.10f}, {scale[0][1]:.10f}, {scale[0][2]:.10f}]);")
+            # AE scale is in percent, compensate for world-scale OBJ vertices
+            scale = [s * 2 for s in kf.scale]
+
+            jsx.append(f"{layer_var}.scale.setValue([{scale[0]:.10f}, {scale[1]:.10f}, {scale[2]:.10f}]);")
             jsx.append(f"{layer_var}.position.setValue([{x_ae:.10f}, {y_ae:.10f}, {z_ae:.10f}]);")
-            jsx.append(f"{layer_var}.rotationX.setValue({-rotX[0]:.10f});")
-            jsx.append(f"{layer_var}.rotationY.setValue({rotY[0]:.10f});")
-            jsx.append(f"{layer_var}.rotationZ.setValue({rotZ[0]:.10f});")
+            jsx.append(f"{layer_var}.rotationX.setValue({-kf.rotation_ae[0]:.10f});")
+            jsx.append(f"{layer_var}.rotationY.setValue({kf.rotation_ae[1]:.10f});")
+            jsx.append(f"{layer_var}.rotationZ.setValue({kf.rotation_ae[2]:.10f});")
 
         jsx.append("")
         return jsx
 
-    def _process_locator(self, reader, loc_obj, name, frame_count, fps, comp_width, comp_height):
+    def _process_locator(self, transform, name, frame_count, fps, comp_width, comp_height):
         """Process locator/transform as 3D null"""
         jsx = []
         layer_var = f"locator_{name.replace(' ', '_').replace('-', '_')}"
@@ -542,11 +442,10 @@ class AfterEffectsExporter(BaseExporter):
         jsx.append(f"{layer_var}.shy = true;")
         jsx.append(f"{layer_var}.label = 13;")  # 13 = yellow in AE
 
-        # Collect animation data
-        times, pos, rotX, rotY, rotZ, scale = self._collect_animation_data(reader, loc_obj, frame_count, fps)
+        keyframes = transform.keyframes
 
         # Check if animated or static
-        if len(times) > 0 and self._is_animated(times, pos, rotX, rotY, rotZ, scale):
+        if keyframes and self._is_animated(keyframes):
             # Animated
             jsx.append(f"var timesArray = new Array();")
             jsx.append(f"var posArray = new Array();")
@@ -557,63 +456,60 @@ class AfterEffectsExporter(BaseExporter):
             comp_center_x = comp_width / 2
             comp_center_y = comp_height / 2
 
-            for i in range(len(times)):
-                x_ae = pos[i][0] * 10 + comp_center_x
-                y_ae = -pos[i][1] * 10 + comp_center_y
-                z_ae = -pos[i][2] * 10
+            for kf in keyframes:
+                time_seconds = (kf.frame - 1) / fps
 
-                jsx.append(f"timesArray.push({times[i]:.10f});")
+                x_ae = kf.position[0] * 10 + comp_center_x
+                y_ae = -kf.position[1] * 10 + comp_center_y
+                z_ae = -kf.position[2] * 10
+
+                jsx.append(f"timesArray.push({time_seconds:.10f});")
                 jsx.append(f"posArray.push([{x_ae:.10f}, {y_ae:.10f}, {z_ae:.10f}]);")
-                jsx.append(f"rotXArray.push({-rotX[i]:.10f});")
-                jsx.append(f"rotYArray.push({rotY[i]:.10f});")
-                jsx.append(f"rotZArray.push({rotZ[i]:.10f});")
+                jsx.append(f"rotXArray.push({-kf.rotation_ae[0]:.10f});")
+                jsx.append(f"rotYArray.push({kf.rotation_ae[1]:.10f});")
+                jsx.append(f"rotZArray.push({kf.rotation_ae[2]:.10f});")
 
             jsx.append(f"{layer_var}.position.setValuesAtTimes(timesArray, posArray);")
             jsx.append(f"{layer_var}.rotationX.setValuesAtTimes(timesArray, rotXArray);")
             jsx.append(f"{layer_var}.rotationY.setValuesAtTimes(timesArray, rotYArray);")
             jsx.append(f"{layer_var}.rotationZ.setValuesAtTimes(timesArray, rotZArray);")
-        elif len(times) > 0:
+        elif keyframes:
             # Static
+            kf = keyframes[0]
+
             comp_center_x = comp_width / 2
             comp_center_y = comp_height / 2
 
-            x_ae = pos[0][0] * 10 + comp_center_x
-            y_ae = -pos[0][1] * 10 + comp_center_y
-            z_ae = -pos[0][2] * 10
+            x_ae = kf.position[0] * 10 + comp_center_x
+            y_ae = -kf.position[1] * 10 + comp_center_y
+            z_ae = -kf.position[2] * 10
 
             jsx.append(f"{layer_var}.position.setValue([{x_ae:.10f}, {y_ae:.10f}, {z_ae:.10f}]);")
             jsx.append(f"{layer_var}.property('Anchor Point').setValue([0.00, 0.00, 0.00]);")
-            jsx.append(f"{layer_var}.scale.setValue([{scale[0][0]:.10f}, {scale[0][1]:.10f}, {scale[0][2]:.10f}]);")
+            jsx.append(f"{layer_var}.scale.setValue([{kf.scale[0] * 2:.10f}, {kf.scale[1] * 2:.10f}, {kf.scale[2] * 2:.10f}]);")
 
         jsx.append("")
         return jsx
 
-    def _export_mesh_to_obj(self, mesh_obj, obj_path):
-        """Export a PolyMesh to OBJ file"""
+    def _export_mesh_to_obj(self, mesh, obj_path):
+        """Export a mesh to OBJ file using SceneData geometry"""
         try:
-            poly = IPolyMesh(mesh_obj, WrapExistingFlag.kWrapExisting)
-            schema = poly.getSchema()
-
-            # Get mesh data at first sample
-            sample = schema.getValue()
-            positions = sample.getPositions()
-            indices = sample.getFaceIndices()
-            counts = sample.getFaceCounts()
+            geometry = mesh.geometry
 
             with open(obj_path, 'w') as f:
-                f.write(f"# Exported from Alembic\n")
-                f.write(f"# Object: {mesh_obj.getName()}\n\n")
+                f.write(f"# Exported from scene data\n")
+                f.write(f"# Object: {mesh.name}\n\n")
 
                 # Write vertices
-                for v in positions:
+                for v in geometry.positions:
                     f.write(f"v {v[0]} {v[1]} {v[2]}\n")
 
                 # Write faces
                 f.write("\n")
                 idx = 0
-                for count in counts:
+                for count in geometry.counts:
                     # OBJ indices are 1-based
-                    face_verts = [str(indices[idx + i] + 1) for i in range(count)]
+                    face_verts = [str(geometry.indices[idx + i] + 1) for i in range(count)]
                     f.write(f"f {' '.join(face_verts)}\n")
                     idx += count
 
@@ -621,59 +517,3 @@ class AfterEffectsExporter(BaseExporter):
         except Exception as e:
             self.log(f"Warning: Could not export mesh to OBJ: {e}")
             return False
-
-    def _should_skip_object(self, name, parent_name):
-        """Check if object should be skipped based on naming conventions"""
-        if "Screen" in name or (parent_name and "Screen" in parent_name):
-            return True
-        if "Trackers" in name and not name.startswith("Tracker"):
-            return True
-        organizational_names = ["Meshes", "Cameras", "ReadGeo", "root", "persp", "top", "front", "side"]
-        if name in organizational_names or any(name.startswith(prefix) for prefix in ["ReadGeo", "Scene"]):
-            return True
-        return False
-
-    def _is_organizational_group(self, obj):
-        """Detect if an IXform is just an organizational container"""
-        if not IXform.matches(obj.getHeader()):
-            return False
-
-        xform = IXform(obj, WrapExistingFlag.kWrapExisting)
-        schema = xform.getSchema()
-
-        num_samples = schema.getNumSamples()
-        if num_samples <= 1:
-            has_direct_shape = False
-            has_children = False
-            for child in obj.children:
-                has_children = True
-                if ICamera.matches(child.getHeader()) or IPolyMesh.matches(child.getHeader()):
-                    has_direct_shape = True
-                    break
-
-            if has_children and not has_direct_shape:
-                return True
-
-        return False
-
-    def _find_camera_recursive(self, obj, depth=0, max_depth=2):
-        """Find a camera child recursively (handles Nuke-style nesting)"""
-        for child in obj.children:
-            if ICamera.matches(child.getHeader()):
-                return child
-            if depth < max_depth and IXform.matches(child.getHeader()):
-                cam = self._find_camera_recursive(child, depth + 1, max_depth)
-                if cam:
-                    return cam
-        return None
-
-    def _find_mesh_recursive(self, obj, depth=0, max_depth=2):
-        """Find a mesh child recursively (handles Nuke-style nesting)"""
-        for child in obj.children:
-            if IPolyMesh.matches(child.getHeader()):
-                return child
-            if depth < max_depth and IXform.matches(child.getHeader()):
-                mesh = self._find_mesh_recursive(child, depth + 1, max_depth)
-                if mesh:
-                    return mesh
-        return None

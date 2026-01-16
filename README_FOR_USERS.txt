@@ -1,15 +1,15 @@
 ================================================================================
-abcConverter - Multi-Format Alembic Converter
-User Guide Version 2.2.0
+MultiConverter - Multi-Format Scene Converter
+User Guide Version 2.5.0 - VFX-Experts
 ================================================================================
 
 WHAT IS THIS?
 -------------
-Converts Alembic (.abc) files to multiple formats:
+Converts Alembic (.abc) and USD (.usd, .usda, .usdc) files to multiple formats:
   • After Effects JSX + OBJ - Cameras, transforms, locators
   • USD (.usdc) - Full 3D scenes with vertex animation
   • Maya USD (.usdc) - Maya-optimized USD export
-  • Maya MA (.ma) - Native Maya ASCII with Alembic references
+  • Maya MA (.ma) - Native Maya ASCII with source file references
 
 Perfect for VFX workflows across SynthEyes, Nuke, Maya, Houdini, and more.
 
@@ -20,17 +20,18 @@ INSTALLATION
 1. Install Visual C++ Redistributable 2015-2022 (Windows only)
    https://aka.ms/vs/17/release/vc_redist.x64.exe
 
-2. Extract the abcConverter folder to any location
-3. Run abcConverter.exe - No Python installation needed!
+2. Extract the MultiConverter folder to any location
+3. Run MultiConverter.exe - No Python installation needed!
 
 ================================================================================
 
 HOW TO USE
 ----------
-1. Launch abcConverter.exe
+1. Launch MultiConverter.exe
 
 2. Select Input File
-   → Browse for your .abc file
+   → Browse for your scene file (.abc, .usd, .usda, .usdc)
+   → Both Alembic and USD input formats are supported
 
 3. Select Output Directory
    → Choose where to save exported files
@@ -47,7 +48,7 @@ HOW TO USE
    • Frame Rate: Default 24 fps
    • Duration: Auto-detected
 
-6. Click "Convert to Formats"
+6. Click "Convert"
    → Files created in separate folders per format
 
 7. Import to Your Software
@@ -87,13 +88,12 @@ COMPATIBILITY
 • After Effects 2025 / 2024
 • Maya 2020+ (MA format), 2022+ (USD support)
 • Houdini (USD import)
-• Python 3.11/3.12 (if building from source)
 
 ================================================================================
 
 VERSION INFORMATION
 -------------------
-Version: 2.2.0
+Version: 2.5.0
 License: MIT
 Support: Open issues at project repository
 

@@ -2,14 +2,13 @@
 """
 Animation Detector Module
 Detects animation types (transform vs vertex) to determine export strategy
-"""
 
-from alembic.Abc import ISampleSelector, WrapExistingFlag
-from alembic.AbcGeom import IPolyMesh, IXform
+Works with any BaseReader implementation (Alembic, USD, etc.)
+"""
 
 
 class AnimationDetector:
-    """Analyzes Alembic scene to detect different types of animation
+    """Analyzes scene to detect different types of animation
 
     Distinguishes between:
     - Transform animation: Position, rotation, scale changes
@@ -29,14 +28,15 @@ class AnimationDetector:
         """
         self.tolerance = tolerance
 
-    def detect_vertex_animation(self, mesh_obj, frame_count, fps):
+    def detect_vertex_animation(self, reader, mesh_obj, frame_count, fps):
         """Detect if a mesh has vertex animation (deformation)
 
         Samples vertex positions across multiple frames to detect changes.
         Uses a sampling interval for efficiency on large frame ranges.
 
         Args:
-            mesh_obj: IPolyMesh object to analyze
+            reader: BaseReader instance (AlembicReader or USDReader)
+            mesh_obj: Mesh object to analyze
             frame_count: Total number of frames in the animation
             fps: Frames per second
 
@@ -44,13 +44,10 @@ class AnimationDetector:
             bool: True if vertex animation detected, False otherwise
         """
         try:
-            poly = IPolyMesh(mesh_obj, WrapExistingFlag.kWrapExisting)
-            schema = poly.getSchema()
-
             # Get first frame positions as baseline
             first_time = 1.0 / fps
-            first_sample = schema.getValue(ISampleSelector(first_time))
-            first_positions = first_sample.getPositions()
+            first_data = reader.get_mesh_data_at_time(mesh_obj, first_time)
+            first_positions = first_data['positions']
             num_verts = len(first_positions)
 
             # Early exit if no vertices
@@ -65,8 +62,8 @@ class AnimationDetector:
             # Check sampled frames for vertex position changes
             for frame in range(2, frame_count + 1, sample_interval):
                 time_seconds = frame / fps
-                sample = schema.getValue(ISampleSelector(time_seconds))
-                positions = sample.getPositions()
+                mesh_data = reader.get_mesh_data_at_time(mesh_obj, time_seconds)
+                positions = mesh_data['positions']
 
                 # Compare each vertex position to first frame
                 for i in range(num_verts):
@@ -80,46 +77,43 @@ class AnimationDetector:
 
             return False
 
-        except Exception as e:
+        except Exception:
             # If we can't read the mesh, assume no vertex animation
             return False
 
-    def detect_transform_animation(self, obj, frame_count, fps):
+    def detect_transform_animation(self, reader, obj, frame_count, fps):
         """Detect if an object has transform animation
 
         Args:
-            obj: Alembic object (typically IXform)
+            reader: BaseReader instance (AlembicReader or USDReader)
+            obj: Object to analyze (transform/xform)
             frame_count: Total number of frames
             fps: Frames per second
 
         Returns:
             bool: True if transform animation detected, False otherwise
         """
-        if not IXform.matches(obj.getHeader()):
-            return False
-
         try:
-            xform = IXform(obj, WrapExistingFlag.kWrapExisting)
-            schema = xform.getSchema()
-
-            # Check if schema is animated (more than 1 sample)
-            num_samples = schema.getNumSamples()
-            if num_samples <= 1:
-                return False
-
-            # Get first and last samples
+            # Get first and last frame transforms
             first_time = 1.0 / fps
             last_time = frame_count / fps
 
-            first_sample = schema.getValue(ISampleSelector(first_time))
-            last_sample = schema.getValue(ISampleSelector(last_time))
+            first_pos, first_rot, first_scale = reader.get_transform_at_time(obj, first_time)
+            last_pos, last_rot, last_scale = reader.get_transform_at_time(obj, last_time)
 
-            first_matrix = first_sample.getMatrix()
-            last_matrix = last_sample.getMatrix()
-
-            # Compare matrices (check translation part for simplicity)
+            # Check if position changed
             for i in range(3):
-                if abs(first_matrix[3][i] - last_matrix[3][i]) > self.tolerance:
+                if abs(first_pos[i] - last_pos[i]) > self.tolerance:
+                    return True
+
+            # Check if rotation changed
+            for i in range(3):
+                if abs(first_rot[i] - last_rot[i]) > self.tolerance:
+                    return True
+
+            # Check if scale changed
+            for i in range(3):
+                if abs(first_scale[i] - last_scale[i]) > self.tolerance:
                     return True
 
             return False
@@ -131,7 +125,7 @@ class AnimationDetector:
         """Analyze entire scene and categorize all meshes by animation type
 
         Args:
-            reader: AlembicReader instance
+            reader: BaseReader instance (AlembicReader or USDReader)
             frame_count: Total number of frames
             fps: Frames per second
 
@@ -153,7 +147,7 @@ class AnimationDetector:
             mesh_name = mesh_obj.getName()
 
             # Check for vertex animation first (most important for AE)
-            has_vertex_anim = self.detect_vertex_animation(mesh_obj, frame_count, fps)
+            has_vertex_anim = self.detect_vertex_animation(reader, mesh_obj, frame_count, fps)
 
             if has_vertex_anim:
                 result['vertex_animated'].append(mesh_name)
@@ -163,8 +157,8 @@ class AnimationDetector:
             parent = parent_map.get(mesh_name)
             has_transform_anim = False
 
-            if parent and IXform.matches(parent.getHeader()):
-                has_transform_anim = self.detect_transform_animation(parent, frame_count, fps)
+            if parent:
+                has_transform_anim = self.detect_transform_animation(reader, parent, frame_count, fps)
 
             if has_transform_anim:
                 result['transform_only'].append(mesh_name)

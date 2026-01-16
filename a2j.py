@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-abcConverter v2.2.0 - Command Line Version
-Multi-format Alembic converter (After Effects, USD, Maya MA)
+MultiConverter v2.5.0 - Command Line Version
+Multi-format scene converter (Alembic/USD to After Effects, USD, Maya MA)
 """
 
 import argparse
@@ -11,19 +11,22 @@ from pathlib import Path
 # Import the converter class from core module
 from alembic_converter import AlembicToJSXConverter
 
+# Supported file extensions
+VALID_EXTENSIONS = {'.abc', '.usd', '.usda', '.usdc'}
+
 
 def main():
     parser = argparse.ArgumentParser(
-        prog='abcConverter',
-        description='Convert Alembic (.abc) files to multiple formats (After Effects JSX, USD, Maya MA)',
+        prog='MultiConverter',
+        description='Convert Alembic (.abc) or USD (.usd/.usda/.usdc) files to multiple formats',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Export to all formats (default)
+  # Export Alembic to all formats (default)
   python a2j.py input.abc --output-dir ./output
 
-  # Export specific formats only
-  python a2j.py input.abc --output-dir ./output --format ae usd
+  # Export USD to specific formats
+  python a2j.py input.usd --output-dir ./output --format ae maya_ma
 
   # Specify custom settings
   python a2j.py input.abc --output-dir ./output --shot-name Shot001 --fps 30 --frames 240
@@ -31,17 +34,23 @@ Examples:
   # Legacy mode (backward compatible with v2.0.0)
   python a2j.py input.abc output.jsx --fps 24 --frames 120
 
-Format descriptions:
+Supported input formats:
+  .abc     - Alembic scene files
+  .usd     - USD scene files (text or binary)
+  .usda    - USD ASCII format
+  .usdc    - USD crate (binary) format
+
+Output format descriptions:
   ae       - After Effects JSX + OBJ (skips vertex-animated meshes)
   usd      - USD .usdc binary format (with vertex animation support)
   maya     - Maya USD .usdc format (Maya 2022+ compatible)
-  maya_ma  - Maya MA .ma native ASCII (references Alembic for vertex animation)
+  maya_ma  - Maya MA .ma native ASCII (references source for vertex animation)
         """
     )
 
-    parser.add_argument('input', type=str, help='Input Alembic (.abc) file path')
+    parser.add_argument('input', type=str, help='Input scene file (.abc, .usd, .usda, .usdc)')
     parser.add_argument('output', type=str, nargs='?',
-                       help='[Legacy] Output JSX file OR use --output-dir for v2.2.0')
+                       help='[Legacy] Output JSX file OR use --output-dir for v2.3.0')
     parser.add_argument('--output-dir', type=str,
                        help='Output directory for all formats (creates subfolders per format)')
     parser.add_argument('--shot-name', type=str,
@@ -52,7 +61,7 @@ Format descriptions:
     parser.add_argument('--fps', type=int, default=24,
                        help='Frame rate (default: 24)')
     parser.add_argument('--frames', type=int,
-                       help='Duration in frames (default: auto-detect from Alembic)')
+                       help='Duration in frames (default: auto-detect from input file)')
 
     # Legacy compatibility arguments
     parser.add_argument('--comp-name', type=str,
@@ -66,8 +75,12 @@ Format descriptions:
         print(f"Error: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
-    if not input_path.suffix.lower() == '.abc':
-        print(f"Warning: Input file doesn't have .abc extension: {args.input}", file=sys.stderr)
+    # Validate file extension
+    file_ext = input_path.suffix.lower()
+    if file_ext not in VALID_EXTENSIONS:
+        print(f"Error: Unsupported file format: {file_ext}", file=sys.stderr)
+        print(f"Supported formats: {', '.join(sorted(VALID_EXTENSIONS))}", file=sys.stderr)
+        sys.exit(1)
 
     # Detect legacy mode vs new mode
     legacy_mode = False
@@ -77,7 +90,7 @@ Format descriptions:
             legacy_mode = True
             output_jsx = args.output
             print("Running in legacy mode (v2.0.0 compatibility)")
-            print("Note: Use --output-dir for v2.2.0 multi-format export\n")
+            print("Note: Use --output-dir for v2.3.0 multi-format export\n")
         else:
             # Assume it's a directory
             args.output_dir = args.output
@@ -101,7 +114,7 @@ Format descriptions:
         print("Auto-detecting frame count...")
         try:
             frame_count = converter.detect_frame_count(str(input_path), args.fps)
-            print(f"Detected {frame_count} frames from Alembic file\n")
+            print(f"Detected {frame_count} frames from input file\n")
         except Exception as e:
             print(f"Warning: Could not auto-detect frame count: {e}")
             frame_count = 120
@@ -146,7 +159,7 @@ Format descriptions:
             sys.exit(1)
 
     else:
-        # New v2.2.0 multi-format mode
+        # New v2.3.0 multi-format mode
         export_ae = 'ae' in args.format
         export_usd = 'usd' in args.format
         export_maya = 'maya' in args.format
@@ -156,7 +169,7 @@ Format descriptions:
 
         try:
             results = converter.convert_multi_format(
-                abc_file=str(input_path),
+                input_file=str(input_path),
                 output_dir=args.output_dir,
                 shot_name=shot_name,
                 fps=args.fps,

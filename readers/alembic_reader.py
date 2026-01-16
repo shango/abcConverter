@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Alembic Reader Module
-Centralized Alembic reading utilities shared across all exporters
+Centralized Alembic reading utilities implementing the BaseReader interface
 """
 
 import numpy as np
@@ -12,8 +12,10 @@ from alembic.Abc import IArchive, ISampleSelector, WrapExistingFlag
 from alembic.AbcGeom import IXform, ICamera, IPolyMesh
 import imath
 
+from .base_reader import BaseReader
 
-class AlembicReader:
+
+class AlembicReader(BaseReader):
     """Centralized Alembic file reading and data extraction
 
     This class handles all Alembic file I/O operations and provides a clean
@@ -28,11 +30,18 @@ class AlembicReader:
         Args:
             abc_file: Path to Alembic (.abc) file
         """
-        self.abc_file = Path(abc_file)
-        self.archive = IArchive(str(abc_file))
+        super().__init__(abc_file)
+        self.archive = IArchive(str(self.file_path))
         self.top = self.archive.getTop()
-        self._objects_cache = None
-        self._parent_map_cache = None
+
+    @property
+    def abc_file(self):
+        """Backward compatibility property"""
+        return self.file_path
+
+    def get_format_name(self):
+        """Return human-readable format name"""
+        return "Alembic"
 
     def get_archive(self):
         """Get the Alembic IArchive object"""
@@ -427,3 +436,46 @@ class AlembicReader:
         rotation = [np.degrees(x), np.degrees(y), np.degrees(z)]
 
         return translation, rotation, scale
+
+    def _get_full_path(self, obj):
+        """Get full hierarchy path for an Alembic object
+
+        Args:
+            obj: Alembic object
+
+        Returns:
+            str: Full path like "/World/Camera/CameraShape"
+        """
+        return obj.getFullName()
+
+    def _is_organizational_group(self, obj):
+        """Check if transform is just an organizational container
+
+        Detects groups that only contain other transforms but no direct shapes.
+
+        Args:
+            obj: Alembic object
+
+        Returns:
+            bool: True if object is organizational only
+        """
+        if not IXform.matches(obj.getHeader()):
+            return False
+
+        xform = IXform(obj, WrapExistingFlag.kWrapExisting)
+        schema = xform.getSchema()
+
+        num_samples = schema.getNumSamples()
+        if num_samples <= 1:
+            has_direct_shape = False
+            has_children = False
+            for child in obj.children:
+                has_children = True
+                if ICamera.matches(child.getHeader()) or IPolyMesh.matches(child.getHeader()):
+                    has_direct_shape = True
+                    break
+
+            if has_children and not has_direct_shape:
+                return True
+
+        return False

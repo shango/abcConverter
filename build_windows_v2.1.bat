@@ -1,11 +1,11 @@
 @echo off
 REM ==============================================================================
-REM abcConverter v2.2.0 - Windows Build Script
+REM MultiConverter v2.5.0 - Windows Build Script
 REM Creates a standalone .exe file using PyInstaller
 REM ==============================================================================
 
 echo ====================================
-echo Building abcConverter v2.2.0
+echo Building MultiConverter v2.5.0
 echo ====================================
 echo.
 
@@ -62,8 +62,8 @@ if exist "build" (
 if exist "dist" (
     rmdir /s /q dist
 )
-if exist "abcConverter.spec" (
-    del abcConverter.spec
+if exist "MultiConverter.spec" (
+    del MultiConverter.spec
 )
 if exist "AlembicToJSX.spec" (
     del AlembicToJSX.spec
@@ -75,16 +75,19 @@ echo Running PyInstaller...
 echo ====================================
 echo.
 
-REM Build the executable with v2.1.0 modular architecture
+REM Build the executable with v2.3.0 modular architecture
 %PYINSTALLER_CMD% ^
-    --name=abcConverter ^
+    --name=MultiConverter ^
     --onedir ^
     --windowed ^
     --clean ^
     --noconfirm ^
     --additional-hooks-dir=. ^
     --hidden-import=alembic_converter ^
-    --hidden-import=core.alembic_reader ^
+    --hidden-import=readers ^
+    --hidden-import=readers.base_reader ^
+    --hidden-import=readers.alembic_reader ^
+    --hidden-import=readers.usd_reader ^
     --hidden-import=core.animation_detector ^
     --hidden-import=exporters.base_exporter ^
     --hidden-import=exporters.ae_exporter ^
@@ -98,6 +101,7 @@ REM Build the executable with v2.1.0 modular architecture
     --hidden-import=imathnumpy ^
     --hidden-import=numpy ^
     --hidden-import=tkinter ^
+    --hidden-import=sv_ttk ^
     --hidden-import=pxr ^
     --hidden-import=pxr.Usd ^
     --hidden-import=pxr.UsdGeom ^
@@ -130,16 +134,16 @@ echo ====================================
 echo Build Complete!
 echo ====================================
 echo.
-echo Executable location: dist\abcConverter\abcConverter.exe
-echo Distribution folder: dist\abcConverter\
+echo Executable location: dist\MultiConverter\MultiConverter.exe
+echo Distribution folder: dist\MultiConverter\
 echo.
 
 REM Show folder size and file count
-if exist "dist\abcConverter" (
+if exist "dist\MultiConverter" (
     echo Folder contents:
-    dir dist\abcConverter | find "File(s)"
+    dir dist\MultiConverter | find "File(s)"
     echo.
-    echo IMPORTANT: Distribute the entire dist\abcConverter\ folder
+    echo IMPORTANT: Distribute the entire dist\MultiConverter\ folder
     echo The .exe requires the supporting files to run
     echo.
 )
@@ -158,7 +162,7 @@ if "%USD_AVAILABLE%"=="YES" (
 
 echo.
 echo Distribution notes:
-echo   - Distribute: dist\abcConverter.exe
+echo   - Distribute: dist\MultiConverter.exe
 echo   - Users need: Microsoft Visual C++ Redistributable 2015-2022
 echo     Download: https://aka.ms/vs/17/release/vc_redist.x64.exe
 echo.

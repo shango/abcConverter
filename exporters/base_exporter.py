@@ -2,10 +2,17 @@
 """
 Base Exporter Module
 Abstract base class ensuring consistent interface across all exporters
+
+v2.5.0 - Exporters now receive SceneData instead of reader objects.
+This decouples exporters from input format implementations.
 """
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.scene_data import SceneData
 
 
 class BaseExporter(ABC):
@@ -18,6 +25,7 @@ class BaseExporter(ABC):
     - Single Responsibility: Each exporter handles ONE format
     - Consistent Interface: All exporters implement the same methods
     - Shared Utilities: Common functionality (logging, path validation) provided here
+    - Format Agnostic: Works with SceneData, not reader objects (v2.5.0+)
     """
 
     def __init__(self, progress_callback=None):
@@ -40,19 +48,17 @@ class BaseExporter(ABC):
         print(message)
 
     @abstractmethod
-    def export(self, reader, output_path, shot_name, fps, frame_count, animation_data):
-        """Export Alembic data to specific format
+    def export(self, scene_data: 'SceneData', output_path, shot_name):
+        """Export scene data to specific format
 
         This is the main export method that each format must implement.
+        v2.5.0+: Takes SceneData instead of reader for format-agnostic export.
 
         Args:
-            reader: AlembicReader instance with opened Alembic file
+            scene_data: SceneData instance with all pre-extracted animation and geometry.
+                       Contains cameras, meshes, transforms with keyframes, and metadata.
             output_path: Output directory path (Path object or string)
             shot_name: Shot name for naming files
-            fps: Frames per second
-            frame_count: Total number of frames
-            animation_data: Animation analysis dict from AnimationDetector.analyze_scene()
-                           Contains keys: 'vertex_animated', 'transform_only', 'static'
 
         Returns:
             dict: Export results with format-specific keys

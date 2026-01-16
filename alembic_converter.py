@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-Alembic Converter - Main Orchestrator Module
-Coordinates multi-format export using modular exporters
+Multi-Format Scene Converter - Main Orchestrator Module
+Coordinates multi-format export using modular readers and exporters
+Supports Alembic (.abc) and USD (.usd, .usda, .usdc) input
+
+v2.5.0 - SceneData architecture: readers extract all data into format-agnostic
+structure, exporters work only with SceneData (no direct reader access).
 """
 
 from pathlib import Path
 
-# Import core modules
-from core.alembic_reader import AlembicReader
-from core.animation_detector import AnimationDetector
+# Import readers module
+from readers import create_reader, get_file_type, AlembicReader
 
 # Import exporters
 from exporters.ae_exporter import AfterEffectsExporter
@@ -17,18 +20,22 @@ from exporters.maya_ma_exporter import MayaMAExporter
 
 
 class AlembicToJSXConverter:
-    """Multi-format Alembic converter (orchestrator/facade)
+    """Multi-format scene converter (orchestrator/facade)
 
     This class coordinates the conversion process:
-    1. Read Alembic file ONCE (via AlembicReader)
+    1. Read input file ONCE (via readers module - supports Alembic and USD)
     2. Analyze animation types ONCE (via AnimationDetector)
     3. Export to selected formats (via format-specific exporters)
 
-    Supports:
+    Input formats supported:
+    - Alembic (.abc)
+    - USD (.usd, .usda, .usdc)
+
+    Output formats supported:
     - After Effects JSX + OBJ (skips vertex-animated meshes)
     - USD .usdc (with vertex animation support)
     - Maya USD .usdc (reuses USD exporter)
-    - Maya MA .ma (native Maya ASCII with Alembic references)
+    - Maya MA .ma (native Maya ASCII with source file references)
     """
 
     def __init__(self, progress_callback=None):
@@ -46,14 +53,15 @@ class AlembicToJSXConverter:
             self.progress_callback(message)
         print(message)
 
-    def convert_multi_format(self, abc_file, output_dir, shot_name, fps=24, frame_count=None,
+    def convert_multi_format(self, input_file, output_dir, shot_name, fps=24, frame_count=None,
                             export_ae=True, export_usd=True, export_maya=True, export_maya_ma=True):
-        """Convert Alembic to multiple formats
+        """Convert scene file to multiple formats
 
-        This is the main entry point for v2.2.0 multi-format export.
+        This is the main entry point for v2.5.0 multi-format export.
+        Uses SceneData architecture - all scene data extracted once, passed to all exporters.
 
         Args:
-            abc_file: Path to input Alembic (.abc) file
+            input_file: Path to input scene file (.abc, .usd, .usda, .usdc)
             output_dir: Output directory for all formats
             shot_name: Shot name for file/folder naming
             fps: Frames per second (default: 24)
@@ -73,10 +81,15 @@ class AlembicToJSXConverter:
                 - 'message': Summary message
         """
         try:
+            # Detect file type for logging
+            input_path = Path(input_file)
+            file_type = get_file_type(str(input_path))
+            format_name = "Alembic" if file_type == 'alembic' else "USD"
+
             self.log(f"\n{'='*60}")
-            self.log(f"abcConverter v2.2.0 - Multi-Format Export")
+            self.log(f"MultiConverter v2.5.0 - VFX-Experts")
             self.log(f"{'='*60}")
-            self.log(f"Input: {abc_file}")
+            self.log(f"Input: {input_file} ({format_name})")
             self.log(f"Output: {output_dir}")
             self.log(f"Shot: {shot_name}")
             self.log(f"{'='*60}\n")
@@ -89,9 +102,9 @@ class AlembicToJSXConverter:
             output_path = Path(output_dir)
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Step 1: Read Alembic file ONCE
-            self.log("Step 1/4: Reading Alembic file...")
-            reader = AlembicReader(abc_file)
+            # Step 1: Read input file ONCE (auto-detect format)
+            self.log(f"Step 1/4: Reading {format_name} file...")
+            reader = create_reader(input_file)
 
             # Auto-detect frame count if not provided
             if frame_count is None:
@@ -102,13 +115,23 @@ class AlembicToJSXConverter:
 
             self.log(f"  FPS: {fps}")
 
-            # Step 2: Analyze animation types ONCE
-            self.log("\nStep 2/4: Analyzing animation types...")
-            detector = AnimationDetector(tolerance=0.0001)
-            animation_data = detector.analyze_scene(reader, frame_count, fps)
+            # Step 2: Extract all scene data ONCE (includes animation analysis)
+            self.log("\nStep 2/4: Extracting scene data and analyzing animation...")
+            scene_data = reader.extract_scene_data(fps, frame_count)
 
             # Log animation summary
-            self.log(detector.get_animation_summary(animation_data))
+            categories = scene_data.animation_categories
+            self.log(f"\nAnimation Analysis:")
+            self.log(f"  - Vertex Animated: {len(categories.vertex_animated)} meshes")
+            self.log(f"  - Transform Only: {len(categories.transform_only)} meshes")
+            self.log(f"  - Static: {len(categories.static)} meshes")
+            self.log(f"  - Cameras: {len(scene_data.cameras)}")
+            self.log(f"  - Transforms/Locators: {len(scene_data.transforms)}")
+
+            if categories.vertex_animated:
+                self.log(f"\n  Vertex Animated Meshes:")
+                for name in categories.vertex_animated:
+                    self.log(f"    - {name}")
 
             # Step 3: Export to selected formats
             self.log("\nStep 3/4: Exporting to selected formats...")
@@ -118,14 +141,14 @@ class AlembicToJSXConverter:
                 self.log(f"\n--- After Effects Export ---")
                 ae_dir = output_path / f"{shot_name}_ae"
                 exporter = AfterEffectsExporter(self.progress_callback)
-                results['ae'] = exporter.export(reader, ae_dir, shot_name, fps, frame_count, animation_data)
+                results['ae'] = exporter.export(scene_data, ae_dir, shot_name)
 
             # Export to USD
             if export_usd:
                 self.log(f"\n--- USD Export ---")
                 usd_dir = output_path / f"{shot_name}_usd"
                 exporter = USDExporter(self.progress_callback)
-                results['usd'] = exporter.export(reader, usd_dir, shot_name, fps, frame_count, animation_data)
+                results['usd'] = exporter.export(scene_data, usd_dir, shot_name)
 
             # Export to Maya (both USD and MA in same folder)
             maya_dir = output_path / f"{shot_name}_maya"
@@ -133,16 +156,12 @@ class AlembicToJSXConverter:
             if export_maya:
                 self.log(f"\n--- Maya USD Export ---")
                 exporter = USDExporter(self.progress_callback)
-                results['maya'] = exporter.export(reader, maya_dir, shot_name, fps, frame_count, animation_data)
+                results['maya'] = exporter.export(scene_data, maya_dir, shot_name)
 
             if export_maya_ma:
                 self.log(f"\n--- Maya MA Export ---")
                 exporter = MayaMAExporter(self.progress_callback)
-                # Pass original Alembic path for vertex animation references
-                results['maya_ma'] = exporter.export(
-                    reader, maya_dir, shot_name, fps, frame_count, animation_data,
-                    abc_file_path=str(Path(abc_file).resolve())
-                )
+                results['maya_ma'] = exporter.export(scene_data, maya_dir, shot_name)
 
             # Step 4: Summary
             self.log(f"\n{'='*60}")
@@ -190,7 +209,7 @@ class AlembicToJSXConverter:
         It internally calls convert_multi_format() with AE-only settings.
 
         Args:
-            abc_file: Path to input Alembic (.abc) file
+            abc_file: Path to input scene file (.abc, .usd, .usda, .usdc)
             jsx_file: Path to output JSX file
             fps: Frames per second (default: 24)
             frame_count: Number of frames (default: 120)
@@ -200,7 +219,7 @@ class AlembicToJSXConverter:
             bool: True if conversion succeeded, False otherwise
         """
         self.log("Running in legacy mode (v2.0.0 compatibility)")
-        self.log("Note: Using new v2.1.0 architecture internally")
+        self.log("Note: Using new v2.5.0 SceneData architecture internally")
 
         # Extract output directory from JSX file path
         jsx_path = Path(jsx_file)
@@ -208,7 +227,7 @@ class AlembicToJSXConverter:
 
         # Use the parent directory as output, but name it with the comp name
         result = self.convert_multi_format(
-            abc_file=abc_file,
+            input_file=abc_file,
             output_dir=output_dir,
             shot_name=comp_name,
             fps=fps,
@@ -247,17 +266,17 @@ class AlembicToJSXConverter:
 
         return False
 
-    def detect_frame_count(self, abc_file, fps=24):
-        """Detect frame count from Alembic file
+    def detect_frame_count(self, input_file, fps=24):
+        """Detect frame count from scene file
 
-        This is a convenience method that wraps AlembicReader.detect_frame_count()
+        This is a convenience method that wraps the reader's detect_frame_count()
 
         Args:
-            abc_file: Path to Alembic (.abc) file
+            input_file: Path to scene file (.abc, .usd, .usda, .usdc)
             fps: Frames per second
 
         Returns:
             int: Number of frames
         """
-        reader = AlembicReader(abc_file)
+        reader = create_reader(input_file)
         return reader.detect_frame_count(fps)
