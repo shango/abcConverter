@@ -13,6 +13,118 @@ Alembic is an open-source geometry caching format developed by Sony Pictures Ima
 
 ---
 
+## CRITICAL: Reality Check for Pipeline Planning
+
+### The Question
+> "Can we use Alembic as a master source to generate native Maya (.ma), FBX, and USD files?"
+
+### The Short Answer
+**Partially.** It works well for **cameras** and **simple animated geometry**, but fundamentally breaks down for **character rigs** and **complex hierarchical relationships**.
+
+### The Evidence
+
+#### From Official Alembic Documentation:
+
+> *"Alembic is very specifically NOT concerned with storing the complex dependency graph of procedural tools used to create the computed results. For example, Alembic will efficiently store the animated vertex positions and animated transforms that result from an arbitrarily complex animation and simulation process, but will NOT attempt to store a representation of the network of computations (rigs, basically) which were required to produce the final, animated vertex positions."*
+> — [Alembic.io](https://www.alembic.io/)
+
+> *"Alembic is a caching system, and not a live scenegraph."*
+> — [Alembic Reference Documentation](https://docs.alembic.io/reference/index.html)
+
+#### From Foundry (Mari Documentation):
+
+> *"As opposed to the Alembic format, which is a point cache format that bakes rigs and constraints to vertices, FBX files export these entities to FBX nodes, which gives you the flexibility to have the original data."*
+> — [Foundry Learn](https://learn.foundry.com/mari/Content/user_guide/alembic_fbx/alembic_fbx.html)
+
+### What This Means in Practice
+
+| Scenario | Alembic → Maya/FBX/USD | Result |
+|----------|------------------------|--------|
+| **Animated Camera** | **WORKS** | Full camera with lens properties and animation |
+| **Static Props/Environment** | **WORKS** | Geometry with transforms, UVs, normals |
+| **Rigid Body Animation** | **WORKS** | Objects moving/rotating without deformation |
+| **Character with Baked Animation** | **PARTIAL** | Mesh deforms correctly BUT no skeleton, no rig controls, no ability to modify animation |
+| **Character Rig (editable)** | **FAILS** | Skeleton, skin weights, IK/FK, constraints are NOT in Alembic |
+| **Blend Shapes (as sliders)** | **FAILS** | Only baked vertex positions, no morph targets |
+| **Cloth/Hair Simulation Setup** | **FAILS** | Only baked results, cannot re-simulate |
+| **Constraints & Expressions** | **FAILS** | Procedural relationships not stored |
+| **Materials & Shaders** | **FAILS** | Only material names, no shader networks |
+
+### The Character Rig Problem - Detailed
+
+When a character is exported from Maya to Alembic:
+
+**What IS stored:**
+```
+Frame 1: [vertex positions for 10,000 vertices]
+Frame 2: [vertex positions for 10,000 vertices]
+Frame 3: [vertex positions for 10,000 vertices]
+... (every frame, full vertex data)
+```
+
+**What is NOT stored:**
+```
+❌ Skeleton hierarchy (joints)
+❌ Skin cluster / bone weights
+❌ IK handles and solvers
+❌ FK controls
+❌ Blend shape targets
+❌ Constraints (parent, point, orient, aim)
+❌ Set driven keys
+❌ Animation curves (only sampled values)
+❌ Rig control shapes
+❌ Custom attributes on controls
+```
+
+### Conversion Reality Matrix
+
+| Source → Target | Cameras | Static Geo | Transform Anim | Vertex Anim | Skeleton | Rig |
+|-----------------|---------|------------|----------------|-------------|----------|-----|
+| Alembic → Maya MA | ✅ | ✅ | ✅ | ✅* | ❌ | ❌ |
+| Alembic → FBX | ✅ | ✅ | ✅ | ⚠️** | ❌ | ❌ |
+| Alembic → USD | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+
+\* Maya can reference Alembic directly for vertex animation playback
+\** FBX supports vertex animation but file sizes become enormous
+
+### When Alembic-as-Master Works
+
+1. **Layout/Previs → Final**: Camera and environment geo
+2. **Animation Review**: Baked character for lighting/rendering (no edits needed)
+3. **VFX Plates**: Background elements, set pieces
+4. **Simulation Caching**: Pre-computed cloth, hair, fluids
+5. **Cross-Software Rendering**: Geometry for rendering in different applications
+
+### When Alembic-as-Master Fails
+
+1. **Animation Revisions**: Cannot modify poses, timing, or curves
+2. **Rig Sharing**: Cannot transfer rigging work between artists
+3. **Character Library**: Cannot reuse rigs on new animation
+4. **Blend Shape Editing**: Cannot adjust facial expressions
+5. **Constraint Updates**: Cannot change parent/child relationships dynamically
+
+### Recommendation for Your Pipeline
+
+| Use Case | Recommended Master Format |
+|----------|---------------------------|
+| Camera moves | **Alembic** ✅ (works perfectly) |
+| Environment/Props | **Alembic** ✅ (works well) |
+| Character Animation (final, no edits) | **Alembic** ⚠️ (view-only) |
+| Character Animation (editable) | **Maya (.ma/.mb)** or **FBX** |
+| Full Scene with Rigs | **Native format** (Maya, Max, etc.) |
+
+### The Bottom Line
+
+**Alembic is excellent for what it was designed for**: caching computed geometry for interchange. It is **not designed to replace native scene files** for complex rigged assets.
+
+If your pipeline requires:
+- Editing animation after export → **Don't use Alembic as master**
+- Re-rigging or weight painting → **Don't use Alembic as master**
+- Modifying constraints/relationships → **Don't use Alembic as master**
+- Just viewing/rendering baked animation → **Alembic works great**
+
+---
+
 ## What CAN Be Extracted from Alembic
 
 ### 1. Hierarchy & Scene Structure
