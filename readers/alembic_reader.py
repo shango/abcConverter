@@ -412,7 +412,7 @@ class AlembicReader(BaseReader):
                 # Normal case
                 x = np.arctan2(rot[1][2], rot[2][2])
                 y = np.arctan2(-rot[0][2], cy)
-                z = np.arctan2(rot[0][1], rot[0][0])
+                z = np.arctan2(-rot[0][1], rot[0][0])  # Negated for correct sign
             else:
                 # Gimbal lock case
                 x = np.arctan2(-rot[2][1], rot[1][1])

@@ -276,8 +276,15 @@ class BaseReader(ABC):
             # which already includes parent transforms
             transform_obj = mesh_obj
 
+            # Check for blend shapes (Maya reader only)
+            blend_shapes = None
+            if hasattr(self, 'get_blend_shape_for_mesh'):
+                blend_shapes = self.get_blend_shape_for_mesh(mesh_name)
+
             # Determine animation type
-            if mesh_name in vertex_animated_set:
+            if blend_shapes is not None:
+                anim_type = AnimationType.BLEND_SHAPE
+            elif mesh_name in vertex_animated_set:
                 anim_type = AnimationType.VERTEX_ANIMATED
             elif mesh_name in transform_only_set:
                 anim_type = AnimationType.TRANSFORM_ONLY
@@ -295,7 +302,7 @@ class BaseReader(ABC):
             # Extract transform keyframes
             keyframes = self._extract_keyframes(transform_obj, fps, frame_count)
 
-            # Extract vertex positions per frame if vertex-animated
+            # Extract vertex positions per frame if vertex-animated (raw, not blend shape)
             vertex_positions = None
             if anim_type == AnimationType.VERTEX_ANIMATED:
                 vertex_positions = {}
@@ -313,7 +320,8 @@ class BaseReader(ABC):
                 animation_type=anim_type,
                 keyframes=keyframes,
                 geometry=geometry,
-                vertex_positions_per_frame=vertex_positions
+                vertex_positions_per_frame=vertex_positions,
+                blend_shapes=blend_shapes
             ))
 
         # Step 6: Extract pure transforms (locators - no camera/mesh children)
@@ -321,6 +329,15 @@ class BaseReader(ABC):
         processed = set(c.name for c in cameras) | set(m.name for m in meshes)
         processed.update(c.parent_name for c in cameras if c.parent_name)
         processed.update(m.parent_name for m in meshes if m.parent_name)
+
+        # Also exclude ALL ancestors of cameras/meshes (grandparents, etc.)
+        # This prevents exporting intermediate transforms that are part of camera/mesh hierarchies
+        all_items = list(cameras) + list(meshes)
+        for item in all_items:
+            parts = [p for p in item.full_path.split('/') if p]
+            # Add all path components except the last (the item itself)
+            for part in parts[:-1]:
+                processed.add(part)
 
         for xform_obj in self.get_transforms():
             xform_name = xform_obj.getName()
@@ -340,11 +357,17 @@ class BaseReader(ABC):
                 keyframes=keyframes
             ))
 
-        # Step 7: Build animation categories
+        # Step 7: Build animation categories (accounting for blend shapes)
+        blend_shape_names = [m.name for m in meshes if m.animation_type == AnimationType.BLEND_SHAPE]
+        vertex_animated_names = [m.name for m in meshes if m.animation_type == AnimationType.VERTEX_ANIMATED]
+        transform_only_names = [m.name for m in meshes if m.animation_type == AnimationType.TRANSFORM_ONLY]
+        static_names = [m.name for m in meshes if m.animation_type == AnimationType.STATIC]
+
         categories = AnimationCategories(
-            vertex_animated=animation_analysis['vertex_animated'],
-            transform_only=animation_analysis['transform_only'],
-            static=animation_analysis['static']
+            vertex_animated=vertex_animated_names,
+            blend_shape=blend_shape_names,
+            transform_only=transform_only_names,
+            static=static_names
         )
 
         return SceneData(

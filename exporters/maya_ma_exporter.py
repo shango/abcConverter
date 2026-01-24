@@ -27,6 +27,7 @@ class MayaMAExporter(BaseExporter):
         self.maya_version = "2020"
         self.shot_name = ""
         self.mesh_shapes = []  # Track mesh shapes for shading connections
+        self.created_nodes = set()  # Track nodes we've created (for hierarchy)
 
     def get_format_name(self):
         return "Maya MA"
@@ -45,6 +46,7 @@ class MayaMAExporter(BaseExporter):
         try:
             self.shot_name = shot_name
             self.mesh_shapes = []
+            self.created_nodes = set()
             self.log(f"Exporting Maya MA format...")
 
             output_dir = Path(output_path)
@@ -234,16 +236,49 @@ class MayaMAExporter(BaseExporter):
     # === SCENE GENERATION ===
 
     def _generate_scene_nodes(self, scene_data: SceneData, source_file_path, source_file_type):
-        """Generate all scene content nodes from SceneData"""
+        """Generate all scene content nodes from SceneData
+
+        Reconstructs the original scene hierarchy by:
+        1. Building a hierarchy map from full_path data
+        2. Creating intermediate group nodes first
+        3. Creating cameras, meshes, and locators with proper parenting
+        """
         lines = ['// Scene content', '']
+
+        # Build hierarchy map from full paths
+        hierarchy_map = self._build_hierarchy_map(scene_data)
+
+        # Create intermediate hierarchy groups first (parents before children)
+        hierarchy_groups = self._get_hierarchy_groups(scene_data)
+        if hierarchy_groups:
+            lines.append('// Hierarchy groups')
+            for group_name, parent_name in hierarchy_groups:
+                if group_name not in self.created_nodes:
+                    # Ensure parent exists if specified and not yet created
+                    if parent_name and parent_name not in self.created_nodes:
+                        lines.append(f'createNode transform -n "{parent_name}";')
+                        self.created_nodes.add(parent_name)
+
+                    if parent_name and parent_name in self.created_nodes:
+                        lines.append(f'createNode transform -n "{group_name}" -p "{parent_name}";')
+                    else:
+                        lines.append(f'createNode transform -n "{group_name}";')
+                    self.created_nodes.add(group_name)
+                    self.log(f"  Creating hierarchy group: {group_name}")
+            lines.append('')
 
         # Process cameras
         for cam in scene_data.cameras:
             # Use parent_name for Alembic (cameraShape -> camera), else use name
             display_name = cam.parent_name if cam.parent_name else cam.name
             cam_name = self._sanitize_name(display_name)
-            self.log(f"  Processing camera: {cam_name}")
-            lines.extend(self._export_camera(cam, cam_name))
+
+            # Get hierarchy parent from full_path
+            parent = self._get_node_parent(cam.full_path, hierarchy_map)
+
+            self.log(f"  Processing camera: {cam_name}" + (f" (parent: {parent})" if parent else ""))
+            lines.extend(self._export_camera(cam, cam_name, parent))
+            self.created_nodes.add(cam_name)
             lines.append('')
 
         # Process meshes
@@ -252,39 +287,54 @@ class MayaMAExporter(BaseExporter):
             display_name = mesh.parent_name if mesh.parent_name else mesh.name
             mesh_name = self._sanitize_name(display_name)
 
+            # Get hierarchy parent from full_path
+            parent = self._get_node_parent(mesh.full_path, hierarchy_map)
+
             if mesh.animation_type == AnimationType.VERTEX_ANIMATED:
-                self.log(f"  Processing vertex-animated mesh: {mesh_name}")
+                self.log(f"  Processing vertex-animated mesh: {mesh_name}" + (f" (parent: {parent})" if parent else ""))
                 lines.extend(self._export_vertex_animated_mesh(
-                    mesh, mesh_name, source_file_path, source_file_type
+                    mesh, mesh_name, source_file_path, source_file_type, parent
                 ))
             else:
-                self.log(f"  Processing mesh: {mesh_name}")
+                self.log(f"  Processing mesh: {mesh_name}" + (f" (parent: {parent})" if parent else ""))
                 is_animated = mesh.animation_type == AnimationType.TRANSFORM_ONLY
-                lines.extend(self._export_static_mesh(mesh, mesh_name, is_animated))
+                lines.extend(self._export_static_mesh(mesh, mesh_name, is_animated, parent))
+            self.created_nodes.add(mesh_name)
             lines.append('')
 
         # Process transforms (locators/trackers)
-        # NOTE: Unlike cameras/meshes, locators use their own name (not parent_name)
-        # because parent_name for locators is the organizational group (e.g. "trackers")
         for transform in scene_data.transforms:
-            xform_name = self._sanitize_name(transform.name)  # Always use locator's own name
+            xform_name = self._sanitize_name(transform.name)
 
             # Skip if no keyframes
             if not transform.keyframes:
                 continue
 
-            self.log(f"  Processing locator: {xform_name}")
-            lines.extend(self._export_locator(transform, xform_name))
+            # Get hierarchy parent from full_path
+            parent = self._get_node_parent(transform.full_path, hierarchy_map)
+
+            self.log(f"  Processing locator: {xform_name}" + (f" (parent: {parent})" if parent else ""))
+            lines.extend(self._export_locator(transform, xform_name, parent))
+            self.created_nodes.add(xform_name)
             lines.append('')
 
         return lines
 
-    def _export_camera(self, cam_data, cam_name):
-        """Export camera with animation from CameraData"""
+    def _export_camera(self, cam_data, cam_name, parent_name=None):
+        """Export camera with animation from CameraData
+
+        Args:
+            cam_data: CameraData from SceneData
+            cam_name: Sanitized camera name
+            parent_name: Optional parent node name for hierarchy
+        """
         lines = []
 
-        # Create transform
-        lines.append(f'createNode transform -n "{cam_name}";')
+        # Create transform (with parent if specified)
+        if parent_name and parent_name in self.created_nodes:
+            lines.append(f'createNode transform -n "{cam_name}" -p "{parent_name}";')
+        else:
+            lines.append(f'createNode transform -n "{cam_name}";')
 
         # Get camera properties
         focal_length = cam_data.properties.focal_length
@@ -311,12 +361,22 @@ class MayaMAExporter(BaseExporter):
 
         return lines
 
-    def _export_static_mesh(self, mesh_data, mesh_name, is_animated):
-        """Export mesh with native Maya geometry from MeshData"""
+    def _export_static_mesh(self, mesh_data, mesh_name, is_animated, parent_name=None):
+        """Export mesh with native Maya geometry from MeshData
+
+        Args:
+            mesh_data: MeshData from SceneData
+            mesh_name: Sanitized mesh name
+            is_animated: Whether the mesh has transform animation
+            parent_name: Optional parent node name for hierarchy
+        """
         lines = []
 
-        # Create transform
-        lines.append(f'createNode transform -n "{mesh_name}";')
+        # Create transform (with parent if specified)
+        if parent_name and parent_name in self.created_nodes:
+            lines.append(f'createNode transform -n "{mesh_name}" -p "{parent_name}";')
+        else:
+            lines.append(f'createNode transform -n "{mesh_name}";')
 
         # Set initial transform values from first keyframe (using Maya-compatible rotation)
         if mesh_data.keyframes:
@@ -411,16 +471,26 @@ class MayaMAExporter(BaseExporter):
 
         return lines
 
-    def _export_vertex_animated_mesh(self, mesh_data, mesh_name, source_file_path, source_file_type):
+    def _export_vertex_animated_mesh(self, mesh_data, mesh_name, source_file_path, source_file_type, parent_name=None):
         """Export vertex-animated mesh via source file reference
 
         For Alembic sources: Creates AlembicNode reference
         For USD sources: Adds comment noting manual USD Stage setup required
+
+        Args:
+            mesh_data: MeshData from SceneData
+            mesh_name: Sanitized mesh name
+            source_file_path: Path to source file
+            source_file_type: 'alembic' or 'usd'
+            parent_name: Optional parent node name for hierarchy
         """
         lines = []
 
-        # Create transform
-        lines.append(f'createNode transform -n "{mesh_name}";')
+        # Create transform (with parent if specified)
+        if parent_name and parent_name in self.created_nodes:
+            lines.append(f'createNode transform -n "{mesh_name}" -p "{parent_name}";')
+        else:
+            lines.append(f'createNode transform -n "{mesh_name}";')
 
         shape_name = f"{mesh_name}Shape"
         self.mesh_shapes.append(shape_name)
@@ -457,7 +527,7 @@ class MayaMAExporter(BaseExporter):
 
         return lines
 
-    def _export_locator(self, transform_data, locator_name):
+    def _export_locator(self, transform_data, locator_name, parent_name=None):
         """Export locator with animation from TransformData
 
         Creates a Maya locator node with animated transform.
@@ -465,14 +535,18 @@ class MayaMAExporter(BaseExporter):
         Args:
             transform_data: TransformData from SceneData
             locator_name: Sanitized name for the locator
+            parent_name: Optional parent node name for hierarchy
 
         Returns:
             list: Maya ASCII lines for this locator
         """
         lines = []
 
-        # Create transform
-        lines.append(f'createNode transform -n "{locator_name}";')
+        # Create transform (with parent if specified)
+        if parent_name and parent_name in self.created_nodes:
+            lines.append(f'createNode transform -n "{locator_name}" -p "{parent_name}";')
+        else:
+            lines.append(f'createNode transform -n "{locator_name}";')
 
         # Set initial transform values from first keyframe (using Maya-compatible rotation)
         if transform_data.keyframes:
@@ -570,6 +644,134 @@ class MayaMAExporter(BaseExporter):
             'connectAttr "lambert1.msg" "initialMaterialInfo.m";',
             '// End of file',
         ]
+
+    # === HIERARCHY UTILITIES ===
+
+    def _build_hierarchy_map(self, scene_data: SceneData):
+        """Build hierarchy map from full_path data
+
+        Parses full_path strings to determine parent-child relationships.
+        This allows reconstruction of the original scene hierarchy.
+
+        Args:
+            scene_data: SceneData with full_path information
+
+        Returns:
+            dict: Mapping of node_name -> parent_name (sanitized names)
+        """
+        hierarchy = {}  # node_name -> parent_name
+        all_paths = []
+
+        # Collect all full paths
+        for cam in scene_data.cameras:
+            all_paths.append(cam.full_path)
+        for mesh in scene_data.meshes:
+            all_paths.append(mesh.full_path)
+        for xform in scene_data.transforms:
+            all_paths.append(xform.full_path)
+
+        # Parse paths to build hierarchy
+        # Path format: "/GroupA/GroupB/ObjectName" or "/GroupA/Transform/ShapeNode"
+        for full_path in all_paths:
+            parts = [p for p in full_path.split('/') if p]
+            if len(parts) < 2:
+                continue
+
+            # Build relationships for all intermediate nodes
+            for i in range(1, len(parts)):
+                child = self._sanitize_name(parts[i])
+                parent = self._sanitize_name(parts[i - 1])
+
+                # Skip if child == parent (shouldn't happen, but safety check)
+                if child != parent:
+                    hierarchy[child] = parent
+
+        return hierarchy
+
+    def _get_hierarchy_groups(self, scene_data: SceneData):
+        """Get list of hierarchy groups that need to be created
+
+        Finds intermediate transform nodes that aren't cameras, meshes, or locators
+        but are parents in the hierarchy.
+
+        Args:
+            scene_data: SceneData instance
+
+        Returns:
+            list: List of (group_name, parent_name) tuples in creation order (parents first)
+        """
+        # Build sets of known nodes (cameras, meshes, transforms we'll create)
+        known_nodes = set()
+
+        for cam in scene_data.cameras:
+            display_name = cam.parent_name if cam.parent_name else cam.name
+            known_nodes.add(self._sanitize_name(display_name))
+
+        for mesh in scene_data.meshes:
+            display_name = mesh.parent_name if mesh.parent_name else mesh.name
+            known_nodes.add(self._sanitize_name(display_name))
+
+        for xform in scene_data.transforms:
+            known_nodes.add(self._sanitize_name(xform.name))
+
+        # Find all hierarchy groups from paths
+        hierarchy_groups = {}  # group_name -> parent_name
+        group_depths = {}  # group_name -> depth (for sorting)
+
+        for item in list(scene_data.cameras) + list(scene_data.meshes) + list(scene_data.transforms):
+            full_path = item.full_path
+            parts = [p for p in full_path.split('/') if p]
+
+            # Walk up the path, finding groups that aren't in known_nodes
+            for i, part in enumerate(parts[:-1]):  # Exclude the leaf node
+                sanitized = self._sanitize_name(part)
+
+                # If this intermediate node is not a known node, it's a group
+                if sanitized not in known_nodes:
+                    # Determine parent (if any)
+                    if i > 0:
+                        parent = self._sanitize_name(parts[i - 1])
+                    else:
+                        parent = None
+
+                    hierarchy_groups[sanitized] = parent
+                    group_depths[sanitized] = i
+
+        # Sort groups by depth (parents before children)
+        sorted_groups = sorted(hierarchy_groups.items(), key=lambda x: group_depths.get(x[0], 0))
+
+        return sorted_groups
+
+    def _get_node_parent(self, full_path, hierarchy_map):
+        """Get the immediate parent node name for a given object
+
+        Args:
+            full_path: Full hierarchy path (e.g., "/Group/SubGroup/Object")
+            hierarchy_map: Hierarchy map from _build_hierarchy_map
+
+        Returns:
+            str or None: Parent node name (sanitized), or None if at root
+        """
+        parts = [p for p in full_path.split('/') if p]
+        if len(parts) < 2:
+            return None
+
+        # Get the parent from the path (second to last element)
+        # But we need to return the TRANSFORM parent, not the shape parent
+        # For "/Group/Camera/CameraShape", Camera's parent is Group
+        # For "/Group/Mesh/MeshShape", Mesh's parent is Group
+
+        # The object we're creating uses display_name (parent_name or name)
+        # So if this is a shape, we want the grandparent
+        obj_name = parts[-1]
+        if obj_name.endswith('Shape') and len(parts) >= 3:
+            # Shape node - parent is the transform, grandparent is the hierarchy parent
+            return self._sanitize_name(parts[-3]) if len(parts) >= 3 else None
+        elif len(parts) >= 2:
+            # Transform node - parent is the previous path element
+            return self._sanitize_name(parts[-2])
+
+        return None
 
     # === UTILITIES ===
 

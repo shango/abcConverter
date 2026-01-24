@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Readers Module
-Scene file readers for different 3D formats (Alembic, USD)
+Scene file readers for different 3D formats (Alembic, USD, Maya)
 """
 
 from pathlib import Path
@@ -12,7 +12,8 @@ from .alembic_reader import AlembicReader
 # Supported file extensions
 ALEMBIC_EXTENSIONS = {'.abc'}
 USD_EXTENSIONS = {'.usd', '.usda', '.usdc'}
-SUPPORTED_EXTENSIONS = ALEMBIC_EXTENSIONS | USD_EXTENSIONS
+MAYA_EXTENSIONS = {'.ma'}
+SUPPORTED_EXTENSIONS = ALEMBIC_EXTENSIONS | USD_EXTENSIONS | MAYA_EXTENSIONS
 
 
 def create_reader(input_file):
@@ -22,7 +23,7 @@ def create_reader(input_file):
         input_file: Path to input scene file
 
     Returns:
-        BaseReader: AlembicReader or USDReader instance
+        BaseReader: AlembicReader, USDReader, or MayaReader instance
 
     Raises:
         ValueError: If file extension is not supported
@@ -36,6 +37,10 @@ def create_reader(input_file):
         # Lazy import to avoid requiring USD when only using Alembic
         from .usd_reader import USDReader
         return USDReader(input_file)
+    elif ext in MAYA_EXTENSIONS:
+        # Lazy import to avoid loading parser when not needed
+        from .maya_reader import MayaReader
+        return MayaReader(input_file)
     else:
         raise ValueError(
             f"Unsupported file format: {ext}\n"
@@ -50,13 +55,15 @@ def get_file_type(input_file):
         input_file: Path to input scene file
 
     Returns:
-        str: 'alembic', 'usd', or 'unknown'
+        str: 'alembic', 'usd', 'maya', or 'unknown'
     """
     ext = Path(input_file).suffix.lower()
     if ext in ALEMBIC_EXTENSIONS:
         return 'alembic'
     elif ext in USD_EXTENSIONS:
         return 'usd'
+    elif ext in MAYA_EXTENSIONS:
+        return 'maya'
     return 'unknown'
 
 
@@ -81,5 +88,6 @@ __all__ = [
     'is_supported_format',
     'ALEMBIC_EXTENSIONS',
     'USD_EXTENSIONS',
+    'MAYA_EXTENSIONS',
     'SUPPORTED_EXTENSIONS',
 ]

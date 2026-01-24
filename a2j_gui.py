@@ -2,7 +2,7 @@
 """
 MultiConverter - Multi-Format Scene Converter
 VFX-Experts Team
-Converts Alembic and USD files to After Effects JSX, USD, and Maya formats
+Converts Alembic, USD, and Maya files to After Effects JSX, USD, Maya, and FBX formats
 """
 
 import tkinter as tk
@@ -28,8 +28,8 @@ class MultiConverterGUI:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("MultiConverter v2.6.1 - VFX-Experts")
-        self.root.geometry("500x780")
+        self.root.title("MultiConverter v2.7.0 - VFX-Experts")
+        self.root.geometry("620x820")
         self.root.resizable(False, False)
 
         # Apply Sun Valley dark theme if available
@@ -42,6 +42,7 @@ class MultiConverterGUI:
             'entry_bg': '#2d2d2d',
             'text': '#ffffff',
             'text_dim': '#a0a0a0',
+            'warning': '#ffaa00',
         }
 
         # Variables
@@ -51,12 +52,20 @@ class MultiConverterGUI:
         self.fps = tk.IntVar(value=24)
         self.frame_count = tk.IntVar(value=120)  # Auto-detected, stored internally
 
+        # Input format detection
+        self.detected_format = tk.StringVar(value="None")  # 'Alembic', 'USD', 'Maya', 'None'
+
         # Format selection (all checked by default)
         self.export_ae = tk.BooleanVar(value=True)
         self.export_usd = tk.BooleanVar(value=True)
-        self.export_maya = tk.BooleanVar(value=True)
         self.export_maya_ma = tk.BooleanVar(value=True)
         self.export_fbx = tk.BooleanVar(value=True)
+
+        # Bind checkbox changes to update warnings
+        self.export_ae.trace_add('write', lambda *args: self.update_warnings())
+        self.export_usd.trace_add('write', lambda *args: self.update_warnings())
+        self.export_maya_ma.trace_add('write', lambda *args: self.update_warnings())
+        self.export_fbx.trace_add('write', lambda *args: self.update_warnings())
 
         self.setup_ui()
 
@@ -73,10 +82,10 @@ class MultiConverterGUI:
         title = ttk.Label(header_frame, text="MultiConverter", font=('Segoe UI', 20, 'bold'))
         title.pack()
 
-        version = ttk.Label(header_frame, text="v2.6.1", font=('Segoe UI', 10))
+        version = ttk.Label(header_frame, text="v2.7.0", font=('Segoe UI', 10))
         version.pack()
 
-        subtitle = ttk.Label(header_frame, text="VFX-Experts  |  Scene Converter - Alembic/USD to AE, USD, Maya",
+        subtitle = ttk.Label(header_frame, text="VFX-Experts  |  Alembic / USD / Maya  →  AE, USD, Maya, FBX",
                             font=('Segoe UI', 9))
         subtitle.pack(pady=(5, 0))
 
@@ -89,7 +98,7 @@ class MultiConverterGUI:
         self.notebook.add(convert_tab, text="  Convert  ")
 
         # Input file
-        ttk.Label(convert_tab, text="Input Scene File (.abc, .usd):").pack(anchor=tk.W, pady=(0, 5))
+        ttk.Label(convert_tab, text="Input Scene File (.abc, .usd, .ma):").pack(anchor=tk.W, pady=(0, 5))
         input_frame = ttk.Frame(convert_tab)
         input_frame.pack(fill=tk.X, pady=(0, 15))
 
@@ -124,29 +133,81 @@ class MultiConverterGUI:
         fps_entry = ttk.Entry(row1, textvariable=self.fps, width=6)
         fps_entry.pack(side=tk.LEFT, padx=(5, 0))
 
-        # Format selection checkboxes
-        format_frame = ttk.LabelFrame(convert_tab, text="Export Formats", padding="15")
+        # Format & Compatibility section (three columns)
+        format_frame = ttk.LabelFrame(convert_tab, text="Format & Compatibility", padding="15")
         format_frame.pack(fill=tk.X, pady=(0, 15))
 
-        ae_check = ttk.Checkbutton(format_frame, text="After Effects JSX + OBJ",
-                                   variable=self.export_ae)
-        ae_check.pack(anchor=tk.W, pady=3)
+        # Configure three columns with weights
+        format_frame.columnconfigure(0, weight=1)  # Input format
+        format_frame.columnconfigure(1, weight=2)  # Warnings
+        format_frame.columnconfigure(2, weight=1)  # Output formats
 
-        usd_check = ttk.Checkbutton(format_frame, text="USD (.usdc)",
-                                    variable=self.export_usd)
-        usd_check.pack(anchor=tk.W, pady=3)
+        # === LEFT COLUMN: Input Format ===
+        input_col = ttk.Frame(format_frame)
+        input_col.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
 
-        maya_check = ttk.Checkbutton(format_frame, text="Maya USD (.usdc)",
-                                     variable=self.export_maya)
-        maya_check.pack(anchor=tk.W, pady=3)
+        ttk.Label(input_col, text="Input Format", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        ttk.Separator(input_col, orient='horizontal').pack(fill=tk.X, pady=(2, 8))
 
-        maya_ma_check = ttk.Checkbutton(format_frame, text="Maya MA (.ma)",
-                                        variable=self.export_maya_ma)
-        maya_ma_check.pack(anchor=tk.W, pady=3)
+        # Format indicator (updates when file is loaded)
+        self.format_indicator = ttk.Label(input_col, textvariable=self.detected_format,
+                                          font=('Segoe UI', 11))
+        self.format_indicator.pack(anchor=tk.W, pady=(5, 0))
 
-        fbx_check = ttk.Checkbutton(format_frame, text="FBX (.fbx) - Unreal Engine",
-                                    variable=self.export_fbx)
-        fbx_check.pack(anchor=tk.W, pady=3)
+        # Format description (wrapping enabled)
+        self.format_desc = ttk.Label(input_col, text="",
+                                     font=('Segoe UI', 8), foreground='gray',
+                                     wraplength=100, justify='left')
+        self.format_desc.pack(anchor=tk.W, pady=(2, 0))
+
+        # Supported formats hint (shown when no file loaded)
+        self.format_hints = ttk.Label(input_col,
+                                      text="Supported:\n• Alembic (.abc)\n• USD (.usd)\n• Maya (.ma)",
+                                      font=('Segoe UI', 10), foreground='gray',
+                                      justify='left')
+        self.format_hints.pack(anchor=tk.W, pady=(5, 0))
+
+        # === CENTER COLUMN: Warnings ===
+        warnings_col = ttk.Frame(format_frame)
+        warnings_col.grid(row=0, column=1, sticky='nsew', padx=10)
+
+        ttk.Label(warnings_col, text="Limitations", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        ttk.Separator(warnings_col, orient='horizontal').pack(fill=tk.X, pady=(2, 8))
+
+        # Warnings text widget (read-only)
+        self.warnings_text = tk.Text(warnings_col, wrap=tk.WORD, height=6, width=30,
+                                     bg=self.colors['entry_bg'],
+                                     fg=self.colors['warning'],
+                                     font=('Segoe UI', 10),
+                                     relief='flat', borderwidth=0,
+                                     state='disabled')
+        self.warnings_text.pack(fill=tk.BOTH, expand=True)
+
+        # === RIGHT COLUMN: Output Formats ===
+        output_col = ttk.Frame(format_frame)
+        output_col.grid(row=0, column=2, sticky='nsew', padx=(10, 0))
+
+        ttk.Label(output_col, text="Export Formats", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        ttk.Separator(output_col, orient='horizontal').pack(fill=tk.X, pady=(2, 8))
+
+        self.ae_check = ttk.Checkbutton(output_col, text="After Effects",
+                                         variable=self.export_ae)
+        self.ae_check.pack(anchor=tk.W, pady=2)
+
+        self.usd_check = ttk.Checkbutton(output_col, text="USD (.usdc)",
+                                         variable=self.export_usd)
+        self.usd_check.pack(anchor=tk.W, pady=2)
+
+        self.maya_ma_check = ttk.Checkbutton(output_col, text="Maya (.ma)",
+                                             variable=self.export_maya_ma)
+        self.maya_ma_check.pack(anchor=tk.W, pady=2)
+
+        self.fbx_check = ttk.Checkbutton(output_col, text="FBX (Unreal)",
+                                         variable=self.export_fbx)
+        self.fbx_check.pack(anchor=tk.W, pady=2)
+
+        # Initialize warnings
+        self.update_warnings()
 
         # Progress bar
         progress_frame = ttk.Frame(convert_tab)
@@ -187,13 +248,14 @@ class MultiConverterGUI:
         clear_btn.pack(pady=(10, 0))
 
     def browse_abc(self):
-        """Browse for input scene file (Alembic or USD)"""
+        """Browse for input scene file (Alembic, USD, or Maya)"""
         filename = filedialog.askopenfilename(
             title="Select Scene File",
             filetypes=[
-                ("Scene Files", "*.abc *.usd *.usda *.usdc"),
+                ("Scene Files", "*.abc *.usd *.usda *.usdc *.ma"),
                 ("Alembic Files", "*.abc"),
                 ("USD Files", "*.usd *.usda *.usdc"),
+                ("Maya ASCII Files", "*.ma"),
                 ("All Files", "*.*")
             ]
         )
@@ -206,12 +268,45 @@ class MultiConverterGUI:
             # Auto-set scene name to filename (without extension)
             scene_name = Path(filename).stem
             self.scene_name.set(scene_name)
+
+            # Detect input format and hide hints
+            self.format_hints.pack_forget()  # Hide the hints once file is loaded
+            ext = Path(filename).suffix.lower()
+
+            # Reset all checkboxes to enabled first
+            self.usd_check.config(state='normal')
+            self.maya_ma_check.config(state='normal')
+            self.export_usd.set(True)
+            self.export_maya_ma.set(True)
+
+            if ext == '.abc':
+                self.detected_format.set("Alembic")
+                self.format_desc.config(text="Camera, mesh, transform data")
+            elif ext in ('.usd', '.usda', '.usdc'):
+                self.detected_format.set("USD")
+                self.format_desc.config(text="Camera, mesh, transform data")
+                # Disable USD export when input is USD
+                self.export_usd.set(False)
+                self.usd_check.config(state='disabled')
+            elif ext == '.ma':
+                self.detected_format.set("Maya")
+                self.format_desc.config(text="Camera, mesh, anim curves")
+                # Disable Maya export when input is Maya
+                self.export_maya_ma.set(False)
+                self.maya_ma_check.config(state='disabled')
+            else:
+                self.detected_format.set("Unknown")
+                self.format_desc.config(text="")
+
+            # Update warnings based on new input format
+            self.update_warnings()
+
             # Auto-detect frame count from scene file
             try:
                 converter = AlembicToJSXConverter()
                 detected_frames = converter.detect_frame_count(filename, self.fps.get())
                 self.frame_count.set(detected_frames)
-                self.log(f"Loaded: {Path(filename).name}")
+                self.log(f"Loaded: {Path(filename).name} ({self.detected_format.get()})")
                 self.log(f"Detected {detected_frames} frames")
             except Exception as e:
                 self.log(f"Could not auto-detect frame count: {e}")
@@ -234,11 +329,35 @@ class MultiConverterGUI:
         """Clear the log text area"""
         self.log_text.delete(1.0, tk.END)
 
+    def update_warnings(self):
+        """Update warnings text based on selected input/output formats"""
+        warnings = []
+
+        # Check which outputs are selected
+        ae_selected = self.export_ae.get()
+        fbx_selected = self.export_fbx.get()
+
+        # Warnings specific to output formats
+        if ae_selected:
+            warnings.append("• Vertex animation not exported to After Effects")
+        if fbx_selected:
+            warnings.append("• FBX: Blend shapes exported, raw vertex cache not supported")
+
+        # Universal warnings (always apply regardless of input format)
+        warnings.append("• Rigs, skinning, constraints not supported")
+        warnings.append("• Expressions, driven keys not supported")
+
+        # Update the warnings text widget
+        self.warnings_text.config(state='normal')
+        self.warnings_text.delete(1.0, tk.END)
+        self.warnings_text.insert(1.0, "\n".join(warnings))
+        self.warnings_text.config(state='disabled')
+
     def start_conversion(self):
         """Start the conversion process in a separate thread"""
         # Validate inputs
         if not self.abc_file.get():
-            messagebox.showerror("Error", "Please select an input scene file (.abc or .usd)")
+            messagebox.showerror("Error", "Please select an input scene file (.abc, .usd, or .ma)")
             return
 
         if not self.output_dir.get():
@@ -250,14 +369,14 @@ class MultiConverterGUI:
             return
 
         # Validate file extension
-        valid_extensions = {'.abc', '.usd', '.usda', '.usdc'}
+        valid_extensions = {'.abc', '.usd', '.usda', '.usdc', '.ma'}
         file_ext = Path(self.abc_file.get()).suffix.lower()
         if file_ext not in valid_extensions:
-            messagebox.showerror("Error", f"Invalid file type: {file_ext}\nSupported: .abc, .usd, .usda, .usdc")
+            messagebox.showerror("Error", f"Invalid file type: {file_ext}\nSupported: .abc, .usd, .usda, .usdc, .ma")
             return
 
         # Check if at least one format is selected
-        if not (self.export_ae.get() or self.export_usd.get() or self.export_maya.get() or self.export_maya_ma.get() or self.export_fbx.get()):
+        if not (self.export_ae.get() or self.export_usd.get() or self.export_maya_ma.get() or self.export_fbx.get()):
             messagebox.showerror("Error", "Please select at least one export format")
             return
 
@@ -287,7 +406,6 @@ class MultiConverterGUI:
                 frame_count=self.frame_count.get(),
                 export_ae=self.export_ae.get(),
                 export_usd=self.export_usd.get(),
-                export_maya=self.export_maya.get(),
                 export_maya_ma=self.export_maya_ma.get(),
                 export_fbx=self.export_fbx.get()
             )
@@ -303,10 +421,6 @@ class MultiConverterGUI:
                 if 'usd' in results and results['usd'].get('success'):
                     usd_file = results['usd']['usd_file']
                     message_lines.append(f"USD: {usd_file}")
-
-                if 'maya' in results and results['maya'].get('success'):
-                    maya_file = results['maya']['usd_file']
-                    message_lines.append(f"Maya: {maya_file}")
 
                 if 'maya_ma' in results and results['maya_ma'].get('success'):
                     maya_ma_file = results['maya_ma']['ma_file']

@@ -19,6 +19,7 @@ class AnimationType(Enum):
     STATIC = "static"
     TRANSFORM_ONLY = "transform_only"
     VERTEX_ANIMATED = "vertex_animated"
+    BLEND_SHAPE = "blend_shape"  # Vertex animation via blend shapes (exportable to FBX)
 
 
 @dataclass
@@ -89,6 +90,67 @@ class MeshGeometry:
 
 
 @dataclass
+class BlendShapeTarget:
+    """Single blend shape target with delta positions
+
+    Attributes:
+        name: Target name (e.g., "smile", "blink")
+        vertex_indices: List of affected vertex indices (sparse storage)
+        deltas: Delta positions for each affected vertex [(dx,dy,dz), ...]
+        full_weight: Weight value at which target is fully applied (default 1.0)
+    """
+    name: str
+    vertex_indices: List[int]
+    deltas: List[Tuple[float, float, float]]
+    full_weight: float = 1.0
+
+
+@dataclass
+class BlendShapeWeightKey:
+    """Keyframe for blend shape weight animation
+
+    Attributes:
+        frame: Frame number
+        weight: Weight value (0.0 to 1.0)
+    """
+    frame: int
+    weight: float
+
+
+@dataclass
+class BlendShapeChannel:
+    """Blend shape channel controlling one or more targets
+
+    A channel represents a single animatable weight that controls one target
+    (or multiple targets for in-between/progressive morphs).
+
+    Attributes:
+        name: Channel name (often same as target name)
+        targets: List of shape targets (usually 1, multiple for in-betweens)
+        weight_animation: Optional animated weights, None if static
+        default_weight: Static weight if not animated (0.0 to 1.0)
+    """
+    name: str
+    targets: List[BlendShapeTarget]
+    weight_animation: Optional[List[BlendShapeWeightKey]] = None
+    default_weight: float = 0.0
+
+
+@dataclass
+class BlendShapeDeformer:
+    """Complete blend shape deformer with all channels
+
+    Attributes:
+        name: Deformer node name
+        channels: All blend shape channels
+        base_mesh_name: Name of the mesh being deformed
+    """
+    name: str
+    channels: List[BlendShapeChannel]
+    base_mesh_name: str
+
+
+@dataclass
 class MeshData:
     """Complete mesh data with animation and geometry
 
@@ -96,10 +158,11 @@ class MeshData:
         name: Mesh object name
         parent_name: Parent transform name if mesh is nested
         full_path: Full hierarchy path
-        animation_type: Classification (STATIC, TRANSFORM_ONLY, VERTEX_ANIMATED)
+        animation_type: Classification (STATIC, TRANSFORM_ONLY, VERTEX_ANIMATED, BLEND_SHAPE)
         keyframes: Transform animation keyframes (empty if static)
         geometry: First frame geometry (positions, indices, counts)
         vertex_positions_per_frame: Per-frame vertex positions if vertex-animated
+        blend_shapes: Blend shape deformer data if mesh has blend shapes
     """
     name: str
     parent_name: Optional[str]
@@ -108,6 +171,7 @@ class MeshData:
     keyframes: List[Keyframe]
     geometry: MeshGeometry
     vertex_positions_per_frame: Optional[Dict[int, List[Tuple[float, float, float]]]] = None
+    blend_shapes: Optional[BlendShapeDeformer] = None
 
 
 @dataclass
@@ -159,11 +223,13 @@ class AnimationCategories:
     backward compatibility and easy access.
 
     Attributes:
-        vertex_animated: List of mesh names with vertex deformation
+        vertex_animated: List of mesh names with raw vertex deformation (not exportable to FBX)
+        blend_shape: List of mesh names with blend shape deformation (exportable to FBX)
         transform_only: List of mesh names with only transform animation
         static: List of mesh names with no animation
     """
     vertex_animated: List[str] = field(default_factory=list)
+    blend_shape: List[str] = field(default_factory=list)
     transform_only: List[str] = field(default_factory=list)
     static: List[str] = field(default_factory=list)
 

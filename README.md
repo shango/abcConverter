@@ -1,13 +1,13 @@
 # MultiConverter
 
-**Version 2.5.0**
+**Version 2.6.2**
 
-Convert Alembic (.abc) and USD (.usd/.usda/.usdc) files to After Effects JSX, USD, and Maya formats with intelligent vertex animation detection.
+Convert Alembic (.abc) and USD (.usd/.usda/.usdc) files to After Effects JSX, USD, Maya, and FBX formats with intelligent vertex animation detection.
 
 ## Features
 
 - **Multi-Format Input** - Accept both Alembic and USD scene files
-- **Multi-Format Export** - After Effects JSX + OBJ, USD (.usdc), Maya USD, Maya MA
+- **Multi-Format Export** - After Effects JSX + OBJ, USD (.usdc), Maya USD, Maya MA, FBX
 - **Animation Intelligence** - Auto-detects vertex deformation vs transform-only animation
 - **Multi-DCC Support** - Works with Alembic from SynthEyes, Nuke, Maya, Houdini, and more
 - **Cameras & Geometry** - Full animation support with automatic coordinate conversion
@@ -28,21 +28,24 @@ See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed build instructions.
 1. Launch `MultiConverter.exe` (or `python a2j_gui.py` from source)
 2. Select input scene file (`.abc`, `.usd`, `.usda`, `.usdc`)
 3. Choose output directory
-4. Select export formats (After Effects, USD, Maya)
+4. Select export formats (After Effects, USD, Maya, FBX)
 5. Configure settings (auto-detected from input file)
 6. Click "Convert"
 7. Import result files into your DCC:
    - **After Effects**: File > Scripts > Run Script File
    - **Maya/Houdini**: File > Import > Select .usdc file
+   - **Unreal Engine**: File > Import > Select .fbx file
 
 **Output structure:**
 ```
 output_dir/
 ├── shot_010_ae/    # After Effects (JSX + OBJ)
 ├── shot_010_usd/   # USD export (.usdc)
-└── shot_010_maya/  # Maya export
-    ├── shot_010.usdc  # Maya USD
-    └── shot_010.ma    # Maya MA (ASCII)
+├── shot_010_maya/  # Maya export
+│   ├── shot_010.usdc  # Maya USD
+│   └── shot_010.ma    # Maya MA (ASCII)
+└── shot_010_fbx/   # FBX export for Unreal Engine
+    └── shot_010.fbx   # FBX ASCII
 ```
 
 ## Supported Input Formats
@@ -54,17 +57,18 @@ output_dir/
 
 ## What Gets Exported
 
-| Element | After Effects | USD / Maya USD | Maya MA |
-|---------|---------------|----------------|---------|
-| Cameras | 3D Camera with full animation | UsdGeom.Camera | Camera node + animCurves |
-| Meshes (transform-only) | 3D Null + OBJ | UsdGeom.Mesh | Mesh + animCurves |
-| Meshes (vertex animation) | Skipped (not supported) | Time-sampled vertices | Source file reference |
-| Locators/Trackers | 3D Null (yellow, shy) | Xform nodes | Transform nodes |
+| Element | After Effects | USD / Maya USD | Maya MA | FBX |
+|---------|---------------|----------------|---------|-----|
+| Cameras | 3D Camera with full animation | UsdGeom.Camera | Camera node + animCurves | Camera node + animation |
+| Meshes (transform-only) | 3D Null + OBJ | UsdGeom.Mesh | Mesh + animCurves | Mesh + transform animation |
+| Meshes (vertex animation) | Skipped (not supported) | Time-sampled vertices | Source file reference | Skipped (not supported) |
+| Locators/Trackers | 3D Null (yellow, shy) | Xform nodes | Transform nodes | Null nodes + animation |
 
 **Notes:**
-- All export formats now support both Alembic (.abc) and USD input files (v2.5.0)
-- Coordinate system conversion handled automatically (Y-up to Y-down for AE)
+- All export formats support both Alembic (.abc) and USD input files
+- Coordinate system conversion handled automatically (Y-up to Y-down for AE, Y-up to Z-up for FBX/Unreal)
 - Maya MA uses source file references for vertex animation (requires original .abc or .usd file)
+- FBX export uses pure Python ASCII writer (no external SDK required) optimized for Unreal Engine
 
 ## Requirements
 
@@ -100,7 +104,7 @@ End users only need **Visual C++ Redistributable 2015-2022**.
 alembic_to_jsx/
 ├── readers/              # Input readers (Alembic, USD)
 ├── core/                 # Core utilities (animation detection)
-├── exporters/            # Format exporters (AE, USD, Maya MA)
+├── exporters/            # Format exporters (AE, USD, Maya MA, FBX)
 ├── alembic_converter.py  # Main orchestrator
 ├── a2j_gui.py            # GUI application
 ├── setup.bat             # Windows setup script

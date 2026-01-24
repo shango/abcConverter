@@ -37,3 +37,9 @@ desktop.ini
 
 # Logs
 *.log
+
+# Local config
+.build_config.json
+
+# Test output
+fbx_ouput_file/

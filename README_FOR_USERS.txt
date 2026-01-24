@@ -1,17 +1,20 @@
 ================================================================================
 MultiConverter - Multi-Format Scene Converter
-User Guide Version 2.5.0 - VFX-Experts
+User Guide Version 2.7.0 - VFX-Experts
 ================================================================================
 
 WHAT IS THIS?
 -------------
-Converts Alembic (.abc) and USD (.usd, .usda, .usdc) files to multiple formats:
+Converts Alembic (.abc), USD (.usd, .usda, .usdc), and Maya ASCII (.ma) files
+to multiple formats:
   • After Effects JSX + OBJ - Cameras, transforms, locators
   • USD (.usdc) - Full 3D scenes with vertex animation
   • Maya USD (.usdc) - Maya-optimized USD export
   • Maya MA (.ma) - Native Maya ASCII with source file references
+  • FBX (.fbx) - Unreal Engine compatible (cameras, meshes, locators)
 
-Perfect for VFX workflows across SynthEyes, Nuke, Maya, Houdini, and more.
+Perfect for VFX and game dev workflows across SynthEyes, Nuke, Maya, Houdini,
+Unreal Engine, and more.
 
 ================================================================================
 
@@ -42,6 +45,7 @@ HOW TO USE
       ☑ USD (.usdc)
       ☑ Maya USD (.usdc)
       ☑ Maya MA (.ma) - Native Maya ASCII
+      ☑ FBX (.fbx) - For Unreal Engine
 
 5. Configure Settings (auto-detected from file)
    • Shot Name: Auto-filled from filename
@@ -53,8 +57,9 @@ HOW TO USE
 
 7. Import to Your Software
    • After Effects: File → Scripts → Run Script File → Select .jsx
-   • Maya: File → Import → Select .usdc
+   • Maya: File → Import → Select .usdc or .ma
    • Houdini: File → Import → USD → Select .usdc
+   • Unreal Engine: File → Import → Select .fbx
 
 ================================================================================
 
@@ -66,9 +71,11 @@ output_folder/
 │   └── *.obj
 ├── shotname_usd/     # USD export
 │   └── shotname.usdc
-└── shotname_maya/    # Maya export (both formats)
-    ├── shotname.usdc # Maya USD
-    └── shotname.ma   # Maya MA (ASCII)
+├── shotname_maya/    # Maya export (both formats)
+│   ├── shotname.usdc # Maya USD
+│   └── shotname.ma   # Maya MA (ASCII)
+└── shotname_fbx/     # FBX export for Unreal Engine
+    └── shotname.fbx  # FBX ASCII format
 
 ================================================================================
 
@@ -76,10 +83,12 @@ WHAT GETS EXPORTED
 ------------------
 • Cameras: Full animation with focal length and aperture
 • Meshes: Transform animation + static geometry
-• Vertex Animation: Exported to USD/Maya (skipped for After Effects)
-• Locators: 3D tracking points as nulls (AE) or transforms (USD)
+• Vertex Animation: Exported to USD/Maya (skipped for After Effects and FBX)
+• Locators: 3D tracking points as nulls (AE/FBX) or transforms (USD)
 
 Coordinate conversion handled automatically!
+  - After Effects: Y-up to Y-down
+  - FBX/Unreal: Y-up to Z-up
 
 ================================================================================
 
@@ -88,12 +97,13 @@ COMPATIBILITY
 • After Effects 2025 / 2024
 • Maya 2020+ (MA format), 2022+ (USD support)
 • Houdini (USD import)
+• Unreal Engine 4.27+ / 5.x (FBX import)
 
 ================================================================================
 
 VERSION INFORMATION
 -------------------
-Version: 2.5.0
+Version: 2.6.2
 License: MIT
 Support: Open issues at project repository
 
